@@ -1,0 +1,69 @@
+{
+  "name": "@claude-memory/init",
+  "version": "1.0.0",
+  "description": "CLI tool for initializing Claude Memory System in your projects (local use only, not published to npm)",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "claude-memory-init": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "mem",
+    "README.md",
+    "USAGE_EXAMPLES.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "postinstall": "node scripts/postinstall.ts",
+    "submodule:init": "git submodule update --init --recursive",
+    "submodule:update": "git submodule update --remote --merge",
+    "prepublishOnly": "pnpm run clean && pnpm run build && pnpm test"
+  },
+  "keywords": [
+    "claude",
+    "memory-system",
+    "cli",
+    "initialization",
+    "ai",
+    "code-analysis",
+    "documentation"
+  ],
+  "author": "Claude Memory Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/claude-memory-init.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/claude-memory-init/issues"
+  },
+  "homepage": "https://github.com/yourusername/claude-memory-init#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "fs-extra": "^11.2.0",
+    "inquirer": "^9.2.0",
+    "ora": "^8.0.0",
+    "simple-git": "^3.29.0",
+    "yaml": "^2.3.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.0",
+    "@types/inquirer": "^9.0.0",
+    "@types/node": "^20.0.0",
+    "@vitest/ui": "^4.0.5",
+    "typescript": "^5.3.0",
+    "vitest": "^4.0.5"
+  }
+}
