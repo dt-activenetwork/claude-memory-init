@@ -40,12 +40,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/claude-memory-init.git"
+    "url": "https://github.com/dt-activenetwork/claude-memory-init.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/claude-memory-init/issues"
+    "url": "https://github.com/dt-activenetwork/claude-memory-init/issues"
   },
-  "homepage": "https://github.com/yourusername/claude-memory-init#readme",
+  "homepage": "https://github.com/dt-activenetwork/claude-memory-init#readme",
   "engines": {
     "node": ">=18.0.0"
   },

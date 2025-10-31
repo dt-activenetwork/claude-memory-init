@@ -64,7 +64,7 @@ git submodule update --remote --merge
 
 1. **Clone with submodules**:
    ```bash
-   git clone --recurse-submodules https://github.com/yourusername/claude-memory-init.git
+   git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
    ```
 
 2. **If you already cloned without --recurse-submodules**:
@@ -178,7 +178,7 @@ When the mem/ template repository has new changes:
 If you need to add the submodule initially:
 
 ```bash
-git submodule add https://github.com/yourusername/claude-memory.git mem
+git submodule add https://github.com/dt-activenetwork/claude-memory.git mem
 git commit -m "Add mem submodule"
 ```
 

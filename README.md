@@ -25,18 +25,18 @@ A CLI tool for initializing the Claude Memory System in your projects. This tool
 cd /path/to/your/project
 
 # 使用 GitHub 仓库
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 
 # 或指定分支/tag
-pnpm dlx github:yourusername/claude-memory-init#main init --quick
-pnpm dlx github:yourusername/claude-memory-init#v1.0.0 init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#main init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#v1.0.0 init --quick
 ```
 
 ### 方式二：克隆仓库后本地使用
 
 ```bash
 # 1. 克隆仓库（包含 submodules）
-git clone --recurse-submodules https://github.com/yourusername/claude-memory-init.git
+git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 
 # 2. 安装依赖并构建
@@ -61,7 +61,7 @@ claude-memory-init init --quick
 ```json
 {
   "devDependencies": {
-    "@claude-memory/init": "github:yourusername/claude-memory-init"
+    "@claude-memory/init": "github:dt-activenetwork/claude-memory-init"
   }
 }
 ```
@@ -110,7 +110,7 @@ node dist/index.js --help
 cd /path/to/your/project
 
 # 从 GitHub 仓库直接使用
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 ```
 
 更多使用方式和详细说明，请参考 [LOCAL_USAGE.md](./LOCAL_USAGE.md)。
@@ -354,12 +354,12 @@ Contributions welcome! Please feel free to submit issues or pull requests.
 ## Support
 
 For issues and questions:
-- GitHub Issues: [Report an issue](https://github.com/yourusername/claude-memory-init/issues)
+- GitHub Issues: [Report an issue](https://github.com/dt-activenetwork/claude-memory-init/issues)
 - Documentation: See `mem/` directory for memory system docs
 
 ## Related
 
-- [Claude Memory System](https://github.com/yourusername/claude-memory) - The core memory system
+- [Claude Memory System](https://github.com/dt-activenetwork/claude-memory) - The core memory system
 - [Claude Code](https://claude.com/claude-code) - Claude's official CLI
 
 ---

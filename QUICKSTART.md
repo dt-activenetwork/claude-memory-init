@@ -141,7 +141,7 @@ claude-memory-init init --quick
 
 - 📖 [Full Documentation](./README.md)
 - 💡 [Examples](./USAGE_EXAMPLES.md)
-- 🐛 [Report Issues](https://github.com/yourusername/claude-memory-init/issues)
+- 🐛 [Report Issues](https://github.com/dt-activenetwork/claude-memory-init/issues)
 
 ---
 

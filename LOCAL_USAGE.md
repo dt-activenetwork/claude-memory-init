@@ -10,7 +10,7 @@
 cd /path/to/your/project
 
 # 直接从 GitHub 执行
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 ```
 
 这会自动：
@@ -31,17 +31,17 @@ pnpm dlx github:yourusername/claude-memory-init init --quick
 
 ```bash
 # 使用最新版本（main 分支）
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 
 # 指定分支
-pnpm dlx github:yourusername/claude-memory-init#main init --quick
-pnpm dlx github:yourusername/claude-memory-init#dev init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#main init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#dev init --quick
 
 # 指定标签/版本
-pnpm dlx github:yourusername/claude-memory-init#v1.0.0 init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#v1.0.0 init --quick
 
 # 指定 commit hash
-pnpm dlx github:yourusername/claude-memory-init#abc1234 init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#abc1234 init --quick
 ```
 
 #### 完整示例
@@ -50,19 +50,19 @@ pnpm dlx github:yourusername/claude-memory-init#abc1234 init --quick
 cd /path/to/your/project
 
 # 快速模式
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 
 # 配置文件模式
-pnpm dlx github:yourusername/claude-memory-init init --config ./claude/config.yaml
+pnpm dlx github:dt-activenetwork/claude-memory-init init --config ./claude/config.yaml
 
 # 交互式模式
-pnpm dlx github:yourusername/claude-memory-init init --interactive
+pnpm dlx github:dt-activenetwork/claude-memory-init init --interactive
 
 # 验证配置
-pnpm dlx github:yourusername/claude-memory-init validate --config ./claude/config.yaml
+pnpm dlx github:dt-activenetwork/claude-memory-init validate --config ./claude/config.yaml
 
 # 检查 submodule 状态
-pnpm dlx github:yourusername/claude-memory-init submodule --status
+pnpm dlx github:dt-activenetwork/claude-memory-init submodule --status
 ```
 
 **优点**：
@@ -86,7 +86,7 @@ pnpm dlx github:yourusername/claude-memory-init submodule --status
 ```json
 {
   "devDependencies": {
-    "@claude-memory/init": "github:yourusername/claude-memory-init#v1.0.0"
+    "@claude-memory/init": "github:dt-activenetwork/claude-memory-init#v1.0.0"
   }
 }
 ```
@@ -130,7 +130,7 @@ pnpm run init-claude
 
 ```bash
 # 克隆（重要：使用 --recurse-submodules）
-git clone --recurse-submodules https://github.com/yourusername/claude-memory-init.git
+git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 
 # 安装和构建
@@ -256,12 +256,12 @@ pnpx claude-memory-init init --quick
 
 **方案 A**：使用镜像（如果有）
 ```bash
-pnpm dlx gitee:yourusername/claude-memory-init init --quick
+pnpm dlx gitee:dt-activenetwork/claude-memory-init init --quick
 ```
 
 **方案 B**：提前克隆，使用本地方式
 ```bash
-git clone --recurse-submodules https://github.com/yourusername/claude-memory-init.git
+git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 pnpm install && pnpm run build
 pnpm link --global
@@ -275,7 +275,7 @@ pnpm link --global
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/claude-memory-init.git
+git clone https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 
 # 手动初始化 submodule
@@ -294,12 +294,12 @@ pnpm link --global
 
 ```bash
 # 使用特定版本
-pnpm dlx github:yourusername/claude-memory-init#v1.0.0 init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init#v1.0.0 init --quick
 
 # 或在 package.json 中
 {
   "devDependencies": {
-    "@claude-memory/init": "github:yourusername/claude-memory-init#v1.0.0"
+    "@claude-memory/init": "github:dt-activenetwork/claude-memory-init#v1.0.0"
   }
 }
 ```
@@ -325,7 +325,7 @@ jobs:
 
       - name: Initialize Claude Memory System
         run: |
-          pnpm dlx github:yourusername/claude-memory-init \
+          pnpm dlx github:dt-activenetwork/claude-memory-init \
             init --config ./claude/config.yaml
 
       - name: Commit generated files
@@ -342,7 +342,7 @@ jobs:
 **如果使用 pnpm dlx**：
 ```bash
 # 每次执行都是最新的（除非指定了版本）
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 ```
 
 **如果克隆到本地**：
@@ -360,7 +360,7 @@ pnpm run build
 pnpm update @claude-memory/init
 
 # 或修改 package.json 指定新版本
-"@claude-memory/init": "github:yourusername/claude-memory-init#v2.0.0"
+"@claude-memory/init": "github:dt-activenetwork/claude-memory-init#v2.0.0"
 ```
 
 ---
@@ -376,7 +376,7 @@ cd my-new-project
 git init
 
 # 直接从 GitHub 初始化
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 
 # 查看生成的文件
 ls -la claude/
@@ -390,7 +390,7 @@ cat CLAUDE.md
 cat >> package.json << 'EOF'
 {
   "devDependencies": {
-    "@claude-memory/init": "github:yourusername/claude-memory-init#v1.0.0"
+    "@claude-memory/init": "github:dt-activenetwork/claude-memory-init#v1.0.0"
   },
   "scripts": {
     "claude:init": "claude-memory-init init --config ./claude/config.yaml",
@@ -410,7 +410,7 @@ pnpm run claude:init
 
 ```bash
 # 克隆工具
-git clone --recurse-submodules https://github.com/yourusername/claude-memory-init.git
+git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 
 # 安装和构建
@@ -437,7 +437,7 @@ node /path/to/claude-memory-init/dist/index.js init --quick
 
 ```bash
 # 简单、快速、不留痕迹
-pnpm dlx github:yourusername/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
 ```
 
 **用于团队项目**：
@@ -445,7 +445,7 @@ pnpm dlx github:yourusername/claude-memory-init init --quick
 ```json
 {
   "devDependencies": {
-    "@claude-memory/init": "github:yourusername/claude-memory-init#v1.0.0"
+    "@claude-memory/init": "github:dt-activenetwork/claude-memory-init#v1.0.0"
   }
 }
 ```
@@ -453,7 +453,7 @@ pnpm dlx github:yourusername/claude-memory-init init --quick
 **用于频繁使用**：
 
 ```bash
-git clone --recurse-submodules https://github.com/yourusername/claude-memory-init.git
+git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 pnpm install && pnpm run build
 pnpm link --global
