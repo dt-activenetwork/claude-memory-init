@@ -19,9 +19,36 @@ const program = new Command();
 /**
  * Initialize from config file
  */
-async function initFromConfig(configPath: string, targetDir: string): Promise<void> {
+async function initFromConfig(configPath: string, targetDir: string, force: boolean = false): Promise<void> {
   logger.info('🚀 Claude Memory System Initializer');
   logger.blank();
+
+  // 0. Check if already initialized
+  const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+  const alreadyInitialized = await isProjectInitialized(targetDir);
+
+  if (alreadyInitialized && !force) {
+    const markerInfo = await getMarkerInfo(targetDir);
+    logger.warning('⚠️  This project is already initialized!');
+    logger.blank();
+    if (markerInfo) {
+      logger.info(`  Project: ${markerInfo.project_name || 'Unknown'}`);
+      logger.info(`  Initialized: ${markerInfo.date}`);
+      logger.info(`  Version: ${markerInfo.version}`);
+    }
+    logger.blank();
+    logger.info('Use --force to re-initialize (this will overwrite existing files)');
+    logger.info('Or use configuration management commands:');
+    logger.info('  claude-memory-init show');
+    logger.info('  claude-memory-init add-objective "..."');
+    logger.info('  claude-memory-init edit');
+    process.exit(0);
+  }
+
+  if (force && alreadyInitialized) {
+    logger.warning('⚠️  Re-initializing project (--force mode)');
+    logger.blank();
+  }
 
   // 1. Load configuration
   const spinner = ora('Loading configuration...').start();
@@ -85,9 +112,31 @@ async function initFromConfig(configPath: string, targetDir: string): Promise<vo
 /**
  * Interactive mode initialization
  */
-async function initInteractive(targetDir: string): Promise<void> {
+async function initInteractive(targetDir: string, force: boolean = false): Promise<void> {
   logger.info('🚀 Claude Memory System Initializer (Interactive Mode)');
   logger.blank();
+
+  // Check if already initialized
+  const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+  const alreadyInitialized = await isProjectInitialized(targetDir);
+
+  if (alreadyInitialized && !force) {
+    const markerInfo = await getMarkerInfo(targetDir);
+    logger.warning('⚠️  This project is already initialized!');
+    logger.blank();
+    if (markerInfo) {
+      logger.info(`  Project: ${markerInfo.project_name || 'Unknown'}`);
+      logger.info(`  Initialized: ${markerInfo.date}`);
+    }
+    logger.blank();
+    logger.info('Use --force to re-initialize');
+    process.exit(0);
+  }
+
+  if (force && alreadyInitialized) {
+    logger.warning('⚠️  Re-initializing project (--force mode)');
+    logger.blank();
+  }
 
   try {
     // 1. Gather project information
@@ -183,9 +232,34 @@ async function initInteractive(targetDir: string): Promise<void> {
 /**
  * Quick mode initialization with defaults
  */
-async function initQuick(targetDir: string): Promise<void> {
+async function initQuick(targetDir: string, force: boolean = false): Promise<void> {
   logger.info('🚀 Claude Memory System Initializer (Quick Mode)');
   logger.blank();
+
+  // Check if already initialized
+  const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+  const alreadyInitialized = await isProjectInitialized(targetDir);
+
+  if (alreadyInitialized && !force) {
+    const markerInfo = await getMarkerInfo(targetDir);
+    logger.warning('⚠️  This project is already initialized!');
+    logger.blank();
+    if (markerInfo) {
+      logger.info(`  Project: ${markerInfo.project_name || 'Unknown'}`);
+      logger.info(`  Initialized: ${markerInfo.date}`);
+    }
+    logger.blank();
+    logger.info('Use --force to re-initialize');
+    logger.info('Or manage configuration with:');
+    logger.info('  claude-memory-init show');
+    logger.info('  claude-memory-init add-objective "..."');
+    process.exit(0);
+  }
+
+  if (force && alreadyInitialized) {
+    logger.warning('⚠️  Re-initializing project (--force mode)');
+    logger.blank();
+  }
 
   const projectName = path.basename(targetDir);
 
@@ -246,14 +320,25 @@ async function initQuick(targetDir: string): Promise<void> {
     }
   };
 
-  const spinner = ora('Initializing memory system...').start();
+  let spinner = ora('Initializing memory system...').start();
   try {
     await initialize(config, targetDir);
     spinner.succeed('Memory system initialized');
 
+    // Save config to file for future management
+    spinner = ora('Saving configuration...').start();
+    const configDir = path.join(targetDir, config.paths.base_dir);
+    await ensureDir(configDir);
+    const configPath = path.join(configDir, 'config.yaml');
+    await saveConfigToYaml(configPath, config);
+    spinner.succeed('Configuration saved');
+
     logger.blank();
     logger.success('✅ Quick initialization complete!');
-    logger.info('You can customize claude/config.yaml and re-run init if needed.');
+    logger.info('You can manage your configuration with:');
+    logger.info('  claude-memory-init show         # View current config');
+    logger.info('  claude-memory-init add-objective "..." # Add objectives');
+    logger.info('  claude-memory-init edit         # Open in editor');
     logger.blank();
   } catch (error) {
     spinner.fail('Initialization failed');
@@ -321,9 +406,11 @@ export function setupCLI(): Command {
     .option('-c, --config <path>', 'Path to config.yaml file')
     .option('-i, --interactive', 'Interactive mode')
     .option('-q, --quick', 'Quick mode with defaults')
+    .option('-f, --force', 'Force re-initialization (overwrite existing)')
     .option('-t, --target <path>', 'Target directory', process.cwd())
     .action(async (options) => {
       const targetDir = path.resolve(options.target);
+      const force = options.force || false;
 
       if (options.config) {
         const configPath = path.resolve(options.config);
@@ -331,16 +418,16 @@ export function setupCLI(): Command {
           logger.error(`Config file not found: ${configPath}`);
           process.exit(1);
         }
-        await initFromConfig(configPath, targetDir);
+        await initFromConfig(configPath, targetDir, force);
       } else if (options.interactive) {
-        await initInteractive(targetDir);
+        await initInteractive(targetDir, force);
       } else if (options.quick) {
-        await initQuick(targetDir);
+        await initQuick(targetDir, force);
       } else {
         // Default: look for config.yaml in target/claude/
         const defaultConfigPath = path.join(targetDir, 'claude', 'config.yaml');
         if (await fileExists(defaultConfigPath)) {
-          await initFromConfig(defaultConfigPath, targetDir);
+          await initFromConfig(defaultConfigPath, targetDir, force);
         } else {
           logger.error('No config file specified. Use one of:');
           logger.info('  --config <path>   Use specific config file');
@@ -411,6 +498,312 @@ export function setupCLI(): Command {
         }
       } else {
         logger.error('Please specify an action: --init, --update, or --status');
+        process.exit(1);
+      }
+    });
+
+  // Configuration management commands
+  program
+    .command('status')
+    .description('Check if project is initialized')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (options) => {
+      const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        const initialized = await isProjectInitialized(targetDir);
+
+        if (initialized) {
+          const markerInfo = await getMarkerInfo(targetDir);
+          logger.success('✅ Project is initialized');
+          logger.blank();
+          if (markerInfo) {
+            logger.info(`  Project: ${markerInfo.project_name || 'Unknown'}`);
+            logger.info(`  Base directory: ${markerInfo.base_dir}`);
+            logger.info(`  Initialized: ${markerInfo.date}`);
+            logger.info(`  Tool version: ${markerInfo.version}`);
+          }
+          logger.blank();
+          logger.info('Use "claude-memory-init show" to view configuration');
+        } else {
+          logger.warning('⚠️  Project is not initialized');
+          logger.blank();
+          logger.info('Initialize with:');
+          logger.info('  claude-memory-init init --quick');
+          logger.info('  claude-memory-init init --interactive');
+          logger.blank();
+        }
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('show')
+    .description('Show current configuration')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (options) => {
+      const { loadConfig } = await import('./core/config-manager.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        const { config } = await loadConfig(targetDir);
+
+        logger.info('📋 Current Configuration');
+        logger.blank();
+        logger.info(`Project: ${config.project.name} (${config.project.type})`);
+        logger.info(`Description: ${config.project.description}`);
+        logger.blank();
+
+        logger.info('🎯 Objectives:');
+        config.objectives.forEach((obj, i) => {
+          logger.info(`  ${i}. ${obj.objective}`);
+        });
+        logger.blank();
+
+        logger.info('📝 Assumptions:');
+        config.assumptions.forEach((assumption, i) => {
+          logger.info(`  ${i}. ${assumption}`);
+        });
+        logger.blank();
+
+        logger.info('🌐 Language:');
+        logger.info(`  User: ${config.language.user_language}`);
+        logger.info(`  Think: ${config.language.think_language}`);
+        logger.blank();
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('add-objective <objective>')
+    .description('Add a new objective to the configuration')
+    .option('-c, --check <text>', 'Custom memory_check text')
+    .option('-u, --update <text>', 'Custom memory_update text')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (objective, options) => {
+      const { addObjective } = await import('./core/config-manager.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        await addObjective(targetDir, objective, options.check, options.update);
+        logger.success(`✅ Added objective: ${objective}`);
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('add-assumption <assumption>')
+    .description('Add a new assumption to the configuration')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (assumption, options) => {
+      const { addAssumption } = await import('./core/config-manager.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        await addAssumption(targetDir, assumption);
+        logger.success(`✅ Added assumption: ${assumption}`);
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('set <key> <value>')
+    .description('Set a configuration value (e.g., "language.user_language Chinese")')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (key, value, options) => {
+      const { setConfigValue } = await import('./core/config-manager.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        // Try to parse value as JSON, otherwise use as string
+        let parsedValue = value;
+        try {
+          parsedValue = JSON.parse(value);
+        } catch {
+          // Keep as string
+        }
+        await setConfigValue(targetDir, key, parsedValue);
+        logger.success(`✅ Set ${key} = ${value}`);
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('remove-objective <index>')
+    .description('Remove an objective by index (see "show" command)')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (index, options) => {
+      const { removeObjective } = await import('./core/config-manager.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        await removeObjective(targetDir, parseInt(index, 10));
+        logger.success(`✅ Removed objective at index ${index}`);
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('remove-assumption <index>')
+    .description('Remove an assumption by index (see "show" command)')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (index, options) => {
+      const { removeAssumption } = await import('./core/config-manager.js');
+      try {
+        const targetDir = path.resolve(options.target);
+        await removeAssumption(targetDir, parseInt(index, 10));
+        logger.success(`✅ Removed assumption at index ${index}`);
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('edit')
+    .description('Open configuration file in your default editor')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .action(async (options) => {
+      const { findConfigFile } = await import('./core/config-manager.js');
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+
+      try {
+        const targetDir = path.resolve(options.target);
+        const configPath = await findConfigFile(targetDir);
+        if (!configPath) {
+          logger.error('Config file not found. Run "claude-memory-init init" first.');
+          process.exit(1);
+        }
+
+        const editor = process.env.EDITOR || process.env.VISUAL || 'vi';
+        logger.info(`Opening ${configPath} with ${editor}...`);
+
+        // Use spawn instead of exec for interactive editing
+        const { spawn } = await import('child_process');
+        const child = spawn(editor, [configPath], {
+          stdio: 'inherit'
+        });
+
+        child.on('exit', (code) => {
+          if (code === 0) {
+            logger.success('✅ Configuration file updated');
+          } else {
+            process.exit(code || 1);
+          }
+        });
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
+  program
+    .command('sync')
+    .description('Sync local memory with remote repository and optionally create PR')
+    .option('-t, --target <path>', 'Target directory', process.cwd())
+    .option('--pr', 'Create a PR for differences (interactive)')
+    .option('--no-cleanup', 'Keep temporary directory (for debugging)')
+    .option('--no-interactive', 'Non-interactive mode (display instructions only)')
+    .option('--auto-confirm', 'Auto-confirm all prompts (skip interactive questions)')
+    .action(async (options) => {
+      const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+      const { cloneMemoryRepoToTmp, diffMemoryRepos, cleanupTmpDir, getSubmoduleUrl, createPRInteractive } = await import('./utils/git-ops.js');
+
+      try {
+        const targetDir = path.resolve(options.target);
+
+        // Check if project is initialized
+        const initialized = await isProjectInitialized(targetDir);
+        if (!initialized) {
+          logger.error('Project is not initialized. Run "claude-memory-init init" first.');
+          process.exit(1);
+        }
+
+        // Get submodule URL from tool's .gitmodules (or use default)
+        const currentFileUrl = new URL(import.meta.url).pathname;
+        const projectRoot = path.resolve(path.dirname(currentFileUrl), '..');
+        const submoduleUrl = await getSubmoduleUrl(projectRoot, 'mem');
+
+        const markerInfo = await getMarkerInfo(targetDir);
+        const localMemoryDir = path.join(targetDir, markerInfo?.base_dir || 'claude');
+
+        logger.info('🔄 Syncing memory repository...');
+        logger.info(`📦 Memory repo: ${submoduleUrl}`);
+        logger.blank();
+
+        // Clone to tmp
+        const spinner = ora('Cloning remote repository...').start();
+        const tmpDir = await cloneMemoryRepoToTmp(submoduleUrl);
+        spinner.succeed('Repository cloned');
+
+        // Compare
+        spinner.start('Comparing local and remote memory...');
+        const differences = await diffMemoryRepos(localMemoryDir, tmpDir);
+
+        if (differences.length === 0) {
+          spinner.succeed('No differences found');
+          logger.blank();
+
+          // Cleanup
+          if (options.cleanup !== false) {
+            await cleanupTmpDir(tmpDir);
+          }
+
+          return;
+        }
+
+        spinner.succeed(`Found ${differences.length} difference(s)`);
+        logger.blank();
+
+        // Show all changed files
+        logger.info('📝 Files that changed:');
+        differences.forEach(file => {
+          const isSystemMemory = file.replace(/\\/g, '/').startsWith('memory/system/');
+          if (isSystemMemory) {
+            logger.info(`  ✓ ${file} (system memory - will be included in PR)`);
+          } else {
+            logger.info(`  - ${file} (skipped - not system memory)`);
+          }
+        });
+        logger.blank();
+
+        // Handle PR creation
+        if (options.pr) {
+          // Determine interactive mode
+          const interactive = options.interactive !== false;
+          const autoConfirm = options.autoConfirm || false;
+
+          // Use interactive PR creation flow
+          await createPRInteractive(tmpDir, localMemoryDir, differences, {
+            interactive,
+            autoConfirm
+          });
+        } else {
+          logger.info('💡 Tip: Add --pr flag to create a pull request with these changes');
+        }
+
+        logger.blank();
+
+        // Cleanup unless --no-cleanup is specified
+        if (options.cleanup !== false) {
+          await cleanupTmpDir(tmpDir);
+          logger.info('🧹 Cleaned up temporary directory');
+        } else {
+          logger.info(`📁 Temporary directory: ${tmpDir}`);
+        }
+
+        logger.blank();
+      } catch (error) {
+        logger.error(error instanceof Error ? error.message : String(error));
         process.exit(1);
       }
     });

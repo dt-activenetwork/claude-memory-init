@@ -14,7 +14,10 @@ import {
   readJsonFile
 } from '../utils/file-ops.js';
 import { getCurrentDate } from '../utils/date-utils.js';
+import { createMarker } from './marker.js';
+import { loadExclusionConfig, shouldExcludeOnCopy, shouldDeleteAfterInit } from './exclusion.js';
 import type { FullConfig, IndexFile } from '../types/config.js';
+import type { ExclusionConfig } from './exclusion.js';
 
 /**
  * Main initialization function
@@ -32,7 +35,7 @@ export async function initialize(config: FullConfig, targetDir: string): Promise
   // Step 2: Ensure base directory exists
   await ensureDir(baseDir);
 
-  // Step 3: Copy memory system template from mem/ to target
+  // Step 3: Copy memory system template (auto-detects source)
   await copyMemorySystemTemplate(baseDir);
 
   // Step 4: Instantiate CLAUDE.md.template
@@ -61,32 +64,86 @@ export async function initialize(config: FullConfig, targetDir: string): Promise
     path.join(targetDir, 'CLAUDE.md')
   );
 
-  // Step 8: Update .gitignore
+  // Step 8: Delete files marked for deletion (e.g., template files)
+  await deleteFilesAfterInit(baseDir);
+
+  // Step 9: Update .gitignore
   await updateGitignore(targetDir, config.paths.base_dir);
+
+  // Step 10: Create marker file to indicate initialization
+  await createMarker(targetDir, config.paths.base_dir, config.project.name);
 }
 
 /**
- * Copy memory system template from mem/ directory
+ * Copy memory system template (auto-detects source)
+ * Priority: local mem/ -> clone from .gitmodules
  */
 async function copyMemorySystemTemplate(targetBaseDir: string): Promise<void> {
-  // The mem/ directory is in the project root (not dist/)
-  // When running from dist/core/initializer.js, we need to go up to project root
-  const currentFileUrl = new URL(import.meta.url).pathname;
-  const currentFileDir = path.dirname(currentFileUrl);
-
-  // From dist/core/initializer.js -> go up to project root
-  // dist/core -> dist -> project_root
-  const projectRoot = path.resolve(currentFileDir, '..', '..');
-  const memSourceDir = path.join(projectRoot, 'mem');
-
-  // Copy entire mem/ directory to target, excluding .git
   const fse = await import('fs-extra');
-  await fse.copy(memSourceDir, targetBaseDir, {
-    filter: (src: string) => {
-      // Don't copy .git directory
-      return !src.includes('.git');
+  let memSourceDir: string;
+  let tmpDir: string | null = null;
+  let shouldCleanup = false;
+
+  // Get project root (where .gitmodules is)
+  const toolFileUrl = new URL(import.meta.url).pathname;
+  const toolFileDir = path.dirname(toolFileUrl);
+  const toolProjectRoot = path.resolve(toolFileDir, '..', '..');
+  const localMemDir = path.join(toolProjectRoot, 'mem');
+
+  // Check if local mem/ directory exists and has content
+  const localMemExists = await fse.pathExists(localMemDir);
+  let localMemHasContent = false;
+
+  if (localMemExists) {
+    const { readdir } = await import('fs/promises');
+    const files = await readdir(localMemDir);
+    // Check if has files other than just .git
+    localMemHasContent = files.some(f => f !== '.git');
+  }
+
+  if (localMemHasContent) {
+    // Local mem/ has content, use it (normal git clone scenario)
+    memSourceDir = localMemDir;
+  } else {
+    // Local mem/ doesn't exist or is empty (pnpm dlx scenario)
+    // Read submodule URL from .gitmodules (or use default HTTPS URL)
+    const { getSubmoduleUrl, cloneMemoryRepoToTmp } = await import('../utils/git-ops.js');
+    const submoduleUrl = await getSubmoduleUrl(toolProjectRoot, 'mem');
+
+    // Clone submodule to tmp
+    tmpDir = await cloneMemoryRepoToTmp(submoduleUrl);
+    memSourceDir = tmpDir;
+    shouldCleanup = true;
+  }
+
+  // Load exclusion config from tool project root
+  const exclusionConfigPath = path.join(toolProjectRoot, '.claude-init-exclude');
+  const exclusionConfig = await loadExclusionConfig(exclusionConfigPath);
+
+  try {
+    // Copy entire mem/ directory to target, applying exclusions
+    await fse.copy(memSourceDir, targetBaseDir, {
+      filter: (src: string) => {
+        // Always exclude .git
+        if (src.includes('.git')) {
+          return false;
+        }
+
+        // Apply exclude_on_copy rules
+        if (shouldExcludeOnCopy(src, memSourceDir, exclusionConfig)) {
+          return false;
+        }
+
+        return true;
+      }
+    });
+  } finally {
+    // Cleanup tmp directory if we created one
+    if (shouldCleanup && tmpDir) {
+      const { cleanupTmpDir } = await import('../utils/git-ops.js');
+      await cleanupTmpDir(tmpDir);
     }
-  });
+  }
 }
 
 /**
@@ -169,6 +226,56 @@ async function updateIndexFile(filePath: string, date: string, defaultContent: a
   } else {
     // Create new file with default content
     await writeJsonFile(filePath, defaultContent);
+  }
+}
+
+/**
+ * Delete files marked for deletion after initialization
+ * This is driven by the delete_after_init section in .claude-init-exclude
+ */
+async function deleteFilesAfterInit(baseDir: string): Promise<void> {
+  const fs = await import('fs/promises');
+
+  // Get project root to load exclusion config
+  const currentFileUrl = new URL(import.meta.url).pathname;
+  const currentFileDir = path.dirname(currentFileUrl);
+  const projectRoot = path.resolve(currentFileDir, '..', '..');
+  const exclusionConfigPath = path.join(projectRoot, '.claude-init-exclude');
+  const exclusionConfig = await loadExclusionConfig(exclusionConfigPath);
+
+  // Find all files recursively that should be deleted
+  async function findFilesToDelete(dir: string): Promise<string[]> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const files: string[] = [];
+
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+
+      if (entry.isDirectory()) {
+        // Check if directory should be deleted
+        if (shouldDeleteAfterInit(fullPath, baseDir, exclusionConfig)) {
+          files.push(fullPath);
+          // Don't recurse into directories marked for deletion
+        } else {
+          files.push(...await findFilesToDelete(fullPath));
+        }
+      } else {
+        // Check if file should be deleted
+        if (shouldDeleteAfterInit(fullPath, baseDir, exclusionConfig)) {
+          files.push(fullPath);
+        }
+      }
+    }
+
+    return files;
+  }
+
+  const filesToDelete = await findFilesToDelete(baseDir);
+
+  // Delete each file/directory
+  const fse = await import('fs-extra');
+  for (const filePath of filesToDelete) {
+    await fse.remove(filePath);
   }
 }
 

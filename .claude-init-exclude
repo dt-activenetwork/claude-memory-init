@@ -1,0 +1,62 @@
+# Claude Memory System - Exclusion Configuration
+# This file defines which files from the mem/ template should be handled during initialization
+#
+# Two modes:
+#   [exclude_on_copy] - Files that are NEVER copied (skipped entirely)
+#   [delete_after_init] - Files that are copied, used, then deleted
+#
+# Each mode supports:
+#   [patterns] - Glob patterns (supports * and ?)
+#   [files] - Exact file names
+#   [directories] - Directory names
+#
+# Lines starting with # are comments
+
+# exclude_on_copy: Files that are never copied to user projects
+# delete_after_init: Files that are copied, used, then deleted (e.g., templates)
+
+[exclude_on_copy]
+# Files that are never copied to user projects
+# These are framework meta-documentation and internal files
+
+[patterns]
+*.git
+.git*
+*.gitignore
+*.gitmodules
+
+[files]
+# Framework meta-documentation (about the memory system itself)
+README.md
+FRAMEWORK_OVERVIEW.md
+FILE_MANIFEST.md
+CHECKLIST.md
+MEMORY_DRIVEN_CONTEXT_OPTIMIZATION.md
+
+# Internal design docs
+DESIGN.md
+
+# Setup guides (replaced by this CLI tool)
+QUICKSTART.md
+
+# Framework workflow docs
+memory-first-workflow.md
+memory-system-operations.md
+
+[directories]
+# Framework documentation directory
+docs
+
+[delete_after_init]
+# Files that are copied temporarily, then deleted after use
+# These files are needed during initialization but not in the final project
+
+[patterns]
+# Template source files (only rendered output is needed)
+*.template
+
+[files]
+# Add specific files here if needed
+
+[directories]
+# Add directories here if needed
