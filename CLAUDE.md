@@ -154,13 +154,17 @@ All system prompt PRs use this single, consistent label for easy filtering and r
 ```bash
 # Using pnpm dlx (recommended)
 cd my-project
-pnpm dlx github:dt-activenetwork/claude-memory-init init --quick
+pnpm dlx github:dt-activenetwork/claude-memory-init init --simple
 
-# Options:
-#   --quick         Quick mode with defaults
-#   --interactive   Interactive setup
+# Initialization Modes:
+#   --quick         Fully automated (no prompts)
+#   --simple        Essential settings only (recommended)
+#   --interactive   Full interactive setup
 #   --config FILE   Use specific config file
+#
+# Additional Options:
 #   --force         Re-initialize existing project
+#   --target PATH   Specify target directory
 ```
 
 ### Sync and Create PR

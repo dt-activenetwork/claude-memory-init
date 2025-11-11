@@ -10,6 +10,8 @@ import { validateConfig, validatePaths } from './core/validator.js';
 import { initialize } from './core/initializer.js';
 import { promptProjectInfo, promptLanguageConfig, promptPathsConfig } from './prompts/project-info.js';
 import { promptObjectives, promptAssumptions, promptDomainTerms } from './prompts/objectives.js';
+import { promptSystemInfo } from './prompts/system-info.js';
+import { promptProjectInfoSimple, promptLanguageConfigSimple } from './prompts/simple-prompts.js';
 import { ensureDir, fileExists } from './utils/file-ops.js';
 import * as logger from './utils/logger.js';
 import type { FullConfig } from './types/config.js';
@@ -152,6 +154,9 @@ async function initInteractive(targetDir: string, force: boolean = false): Promi
     const pathsConfig = await promptPathsConfig(targetDir);
     logger.blank();
 
+    // 1.5. Detect system information
+    const systemConfig = await promptSystemInfo();
+
     // 2. Gather objectives
     const objectives = await promptObjectives();
     logger.blank();
@@ -169,6 +174,7 @@ async function initInteractive(targetDir: string, force: boolean = false): Promi
       project: projectInfo,
       language: languageConfig,
       paths: pathsConfig,
+      system: systemConfig,
       objectives,
       assumptions,
       domain: {
@@ -230,38 +236,23 @@ async function initInteractive(targetDir: string, force: boolean = false): Promi
 }
 
 /**
- * Quick mode initialization with defaults
+ * Quick mode initialization with defaults (completely silent)
  */
 async function initQuick(targetDir: string, force: boolean = false): Promise<void> {
-  logger.info('🚀 Claude Memory System Initializer (Quick Mode)');
-  logger.blank();
-
   // Check if already initialized
-  const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+  const { isProjectInitialized } = await import('./core/marker.js');
   const alreadyInitialized = await isProjectInitialized(targetDir);
 
   if (alreadyInitialized && !force) {
-    const markerInfo = await getMarkerInfo(targetDir);
-    logger.warning('⚠️  This project is already initialized!');
-    logger.blank();
-    if (markerInfo) {
-      logger.info(`  Project: ${markerInfo.project_name || 'Unknown'}`);
-      logger.info(`  Initialized: ${markerInfo.date}`);
-    }
-    logger.blank();
-    logger.info('Use --force to re-initialize');
-    logger.info('Or manage configuration with:');
-    logger.info('  claude-memory-init show');
-    logger.info('  claude-memory-init add-objective "..."');
-    process.exit(0);
-  }
-
-  if (force && alreadyInitialized) {
-    logger.warning('⚠️  Re-initializing project (--force mode)');
-    logger.blank();
+    logger.error('Project already initialized. Use --force to re-initialize.');
+    process.exit(1);
   }
 
   const projectName = path.basename(targetDir);
+
+  // Detect system information (non-interactive)
+  const { getSystemInfoQuick } = await import('./prompts/system-info.js');
+  const systemConfig = await getSystemInfoQuick();
 
   const config: FullConfig = {
     project: {
@@ -277,6 +268,7 @@ async function initQuick(targetDir: string, force: boolean = false): Promise<voi
       base_dir: 'claude',
       codebase: targetDir
     },
+    system: systemConfig,
     objectives: [
       {
         objective: 'Analyze and document the codebase architecture',
@@ -320,28 +312,141 @@ async function initQuick(targetDir: string, force: boolean = false): Promise<voi
     }
   };
 
-  let spinner = ora('Initializing memory system...').start();
   try {
     await initialize(config, targetDir);
-    spinner.succeed('Memory system initialized');
 
-    // Save config to file for future management
-    spinner = ora('Saving configuration...').start();
+    // Save config to file
+    const configDir = path.join(targetDir, config.paths.base_dir);
+    await ensureDir(configDir);
+    const configPath = path.join(configDir, 'config.yaml');
+    await saveConfigToYaml(configPath, config);
+
+    logger.success('✅ Initialization complete');
+  } catch (error) {
+    logger.error('Initialization failed: ' + (error instanceof Error ? error.message : String(error)));
+    process.exit(1);
+  }
+}
+
+/**
+ * Simple mode initialization (essential prompts only)
+ */
+async function initSimple(targetDir: string, force: boolean = false): Promise<void> {
+  logger.info('🚀 Claude Memory System Initializer (Simple Mode)');
+  logger.blank();
+
+  // Check if already initialized
+  const { isProjectInitialized, getMarkerInfo } = await import('./core/marker.js');
+  const alreadyInitialized = await isProjectInitialized(targetDir);
+
+  if (alreadyInitialized && !force) {
+    const markerInfo = await getMarkerInfo(targetDir);
+    logger.warning('⚠️  This project is already initialized!');
+    logger.blank();
+    if (markerInfo) {
+      logger.info(`  Project: ${markerInfo.project_name || 'Unknown'}`);
+      logger.info(`  Initialized: ${markerInfo.date}`);
+    }
+    logger.blank();
+    logger.info('Use --force to re-initialize');
+    process.exit(0);
+  }
+
+  if (force && alreadyInitialized) {
+    logger.warning('⚠️  Re-initializing project (--force mode)');
+    logger.blank();
+  }
+
+  try {
+    // 1. Essential project information
+    logger.info('📋 Project Information');
+    const projectInfo = await promptProjectInfoSimple(targetDir);
+    logger.blank();
+
+    // 2. Language configuration (simplified)
+    logger.info('🌐 Language');
+    const languageConfig = await promptLanguageConfigSimple();
+    logger.blank();
+
+    // 3. System information (auto-detect with user selection if needed)
+    const systemConfig = await promptSystemInfo();
+
+    // 4. Build configuration with defaults
+    const config: FullConfig = {
+      project: projectInfo,
+      language: languageConfig,
+      paths: {
+        base_dir: 'claude',
+        codebase: targetDir
+      },
+      system: systemConfig,
+      objectives: [
+        {
+          objective: 'Analyze and document the codebase architecture',
+          memory_check: 'Query semantic notes for architecture patterns',
+          memory_update: 'Create semantic notes for architectural discoveries'
+        }
+      ],
+      assumptions: [
+        'The codebase structure will be analyzed incrementally'
+      ],
+      domain: {
+        terms: [],
+        evidence: [
+          'All claims must include code quotes with file:line references'
+        ],
+        external_sources: []
+      },
+      tasks: {
+        use_task_specific_indexes: true,
+        use_incremental_work: true,
+        max_context_per_step: 2000,
+        max_task_context: 10000,
+        hygiene_cycle_frequency: 5
+      },
+      output: {
+        format: 'markdown',
+        include_diagrams: true,
+        diagram_types: ['flowchart', 'sequence', 'class'],
+        code_reference_format: 'file:line'
+      },
+      git: {
+        ai_git_operations: false,
+        ignore_patterns: ['claude/temp/']
+      },
+      advanced: {
+        max_tags: 100,
+        max_topics: 50,
+        max_cross_refs: 10,
+        target_context_reduction: 0.80,
+        target_index_lookup_time: 1.0
+      }
+    };
+
+    // 5. Save configuration
+    const spinner = ora('Saving configuration...').start();
     const configDir = path.join(targetDir, config.paths.base_dir);
     await ensureDir(configDir);
     const configPath = path.join(configDir, 'config.yaml');
     await saveConfigToYaml(configPath, config);
     spinner.succeed('Configuration saved');
 
+    // 6. Execute initialization
+    spinner.start('Initializing memory system...');
+    await initialize(config, targetDir);
+    spinner.succeed('Memory system initialized');
+
     logger.blank();
-    logger.success('✅ Quick initialization complete!');
-    logger.info('You can manage your configuration with:');
-    logger.info('  claude-memory-init show         # View current config');
+    logger.success('✅ Initialization complete!');
+    logger.blank();
+    logger.info('Next steps:');
+    logger.info('  claude-memory-init show         # View configuration');
     logger.info('  claude-memory-init add-objective "..." # Add objectives');
-    logger.info('  claude-memory-init edit         # Open in editor');
+    logger.info('  claude-memory-init edit         # Edit configuration');
     logger.blank();
   } catch (error) {
-    spinner.fail('Initialization failed');
+    logger.blank();
+    logger.error('Initialization failed:');
     logger.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
@@ -404,8 +509,9 @@ export function setupCLI(): Command {
     .command('init')
     .description('Initialize Claude Memory System')
     .option('-c, --config <path>', 'Path to config.yaml file')
-    .option('-i, --interactive', 'Interactive mode')
-    .option('-q, --quick', 'Quick mode with defaults')
+    .option('-i, --interactive', 'Interactive mode (all configuration options)')
+    .option('-s, --simple', 'Simple mode (essential settings only)')
+    .option('-q, --quick', 'Quick mode (fully automated, no prompts)')
     .option('-f, --force', 'Force re-initialization (overwrite existing)')
     .option('-t, --target <path>', 'Target directory', process.cwd())
     .action(async (options) => {
@@ -421,6 +527,8 @@ export function setupCLI(): Command {
         await initFromConfig(configPath, targetDir, force);
       } else if (options.interactive) {
         await initInteractive(targetDir, force);
+      } else if (options.simple) {
+        await initSimple(targetDir, force);
       } else if (options.quick) {
         await initQuick(targetDir, force);
       } else {
@@ -429,10 +537,11 @@ export function setupCLI(): Command {
         if (await fileExists(defaultConfigPath)) {
           await initFromConfig(defaultConfigPath, targetDir, force);
         } else {
-          logger.error('No config file specified. Use one of:');
+          logger.error('No initialization mode specified. Use one of:');
           logger.info('  --config <path>   Use specific config file');
-          logger.info('  --interactive     Interactive mode');
-          logger.info('  --quick           Quick mode with defaults');
+          logger.info('  --interactive     Full interactive mode');
+          logger.info('  --simple          Simple mode (recommended)');
+          logger.info('  --quick           Quick automated mode');
           process.exit(1);
         }
       }

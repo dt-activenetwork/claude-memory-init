@@ -11,7 +11,14 @@ import type { FullConfig } from '../types/config.js';
 export async function loadConfigFromYaml(configPath: string): Promise<FullConfig> {
   try {
     const content = await readFile(configPath);
-    const config = YAML.parse(content) as FullConfig;
+    let config = YAML.parse(content) as FullConfig;
+
+    // Backward compatibility: Auto-detect system info if not present
+    if (!config.system) {
+      const { getSystemInfoQuick } = await import('../prompts/system-info.js');
+      config.system = await getSystemInfoQuick();
+    }
+
     return config;
   } catch (error) {
     if (error instanceof Error) {
