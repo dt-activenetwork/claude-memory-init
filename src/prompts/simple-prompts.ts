@@ -3,7 +3,7 @@
  */
 import inquirer from 'inquirer';
 import * as path from 'path';
-import type { ProjectConfig, LanguageConfig } from '../types/config.js';
+import type { ProjectConfig, LanguageConfig, GitConfig } from '../types/config.js';
 
 /**
  * Prompt for essential project information (simple mode)
@@ -64,5 +64,33 @@ export async function promptLanguageConfigSimple(): Promise<LanguageConfig> {
   return {
     user_language: userLanguage,
     think_language: 'English' // Always English for internal reasoning
+  };
+}
+
+/**
+ * Prompt for git configuration (simple mode)
+ */
+export async function promptGitConfigSimple(): Promise<GitConfig> {
+  const answers = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'enable_auto_commit',
+      message: 'Enable auto-commit for memory system updates?',
+      default: false
+    },
+    {
+      type: 'confirm',
+      name: 'commit_separately',
+      message: 'Commit memory updates separately from other file changes?',
+      default: true,
+      when: (answers) => answers.enable_auto_commit
+    }
+  ]);
+
+  return {
+    ai_git_operations: answers.enable_auto_commit || false,
+    ignore_patterns: ['claude/temp/'],
+    auto_commit_memory_updates: answers.enable_auto_commit || false,
+    commit_memory_separately: answers.commit_separately ?? true
   };
 }

@@ -86,6 +86,8 @@ export interface OutputConfig {
 export interface GitConfig {
   ai_git_operations: boolean;
   ignore_patterns: string[];
+  auto_commit_memory_updates?: boolean;  // Auto-commit when memory system is updated
+  commit_memory_separately?: boolean;    // Separate memory updates from other file changes
 }
 
 export interface AdvancedConfig {

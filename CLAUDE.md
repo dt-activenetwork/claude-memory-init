@@ -52,7 +52,56 @@ The tool uses a git submodule to maintain the memory system template:
 - **Development:** `git clone --recurse-submodules` includes `mem/`
 - **Production:** `pnpm dlx` auto-detects and clones from `.gitmodules`
 
-## Key Features (2025-01-07 Update)
+## Key Features
+
+### Auto-Commit Feature (2025-01-12 Update) ⭐ NEW
+
+**Configurable AI Git Operations**
+
+The `--simple` initialization mode now includes an optional auto-commit feature for memory system updates:
+
+**User Control:**
+- ✅ **Optional**: Disabled by default, user must explicitly enable
+- ✅ **Configurable**: User chooses commit strategy (separate or combined)
+- ✅ **Transparent**: Clear prompts explain what will happen
+- ✅ **Safe**: Smart file separation and safety checks
+
+**How It Works:**
+1. During `--simple` init, user is asked: "Enable auto-commit for memory system updates?"
+2. If enabled, memory system files are automatically committed after initialization
+3. User can choose to commit memory updates separately from other file changes
+4. Generates descriptive commit messages automatically
+
+**Smart File Separation:**
+- Memory system files: `claude/` directory and `CLAUDE.md`
+- Other files: All other modified files in the repository
+
+**Commit Message Format:**
+```
+chore: update memory system (config, prompts, memory)
+
+Update Claude memory system configuration and files.
+
+Date: 2025-01-12
+Files updated: 5
+
+Auto-generated commit by claude-memory-init.
+```
+
+**Configuration:**
+```yaml
+git:
+  ai_git_operations: false           # Allow AI to perform git operations
+  auto_commit_memory_updates: false  # Auto-commit memory system changes
+  commit_memory_separately: true     # Commit memory updates separately
+  ignore_patterns: ['claude/temp/']  # Files to ignore
+```
+
+See `docs/AUTO_COMMIT_FEATURE.md` for detailed documentation.
+
+---
+
+## Previous Features (2025-01-07 Update)
 
 ### 1. Automatic Submodule Detection
 

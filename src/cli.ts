@@ -11,7 +11,7 @@ import { initialize } from './core/initializer.js';
 import { promptProjectInfo, promptLanguageConfig, promptPathsConfig } from './prompts/project-info.js';
 import { promptObjectives, promptAssumptions, promptDomainTerms } from './prompts/objectives.js';
 import { promptSystemInfo } from './prompts/system-info.js';
-import { promptProjectInfoSimple, promptLanguageConfigSimple } from './prompts/simple-prompts.js';
+import { promptProjectInfoSimple, promptLanguageConfigSimple, promptGitConfigSimple } from './prompts/simple-prompts.js';
 import { ensureDir, fileExists } from './utils/file-ops.js';
 import * as logger from './utils/logger.js';
 import type { FullConfig } from './types/config.js';
@@ -200,7 +200,9 @@ async function initInteractive(targetDir: string, force: boolean = false): Promi
       },
       git: {
         ai_git_operations: false,
-        ignore_patterns: [`${pathsConfig.base_dir}/temp/`]
+        ignore_patterns: [`${pathsConfig.base_dir}/temp/`],
+        auto_commit_memory_updates: false,
+        commit_memory_separately: true
       },
       advanced: {
         max_tags: 100,
@@ -301,7 +303,9 @@ async function initQuick(targetDir: string, force: boolean = false): Promise<voi
     },
     git: {
       ai_git_operations: false,
-      ignore_patterns: ['claude/temp/']
+      ignore_patterns: ['claude/temp/'],
+      auto_commit_memory_updates: false,
+      commit_memory_separately: true
     },
     advanced: {
       max_tags: 100,
@@ -368,10 +372,15 @@ async function initSimple(targetDir: string, force: boolean = false): Promise<vo
     const languageConfig = await promptLanguageConfigSimple();
     logger.blank();
 
-    // 3. System information (auto-detect with user selection if needed)
+    // 3. Git configuration (auto-commit settings)
+    logger.info('⚙️  Git Configuration');
+    const gitConfig = await promptGitConfigSimple();
+    logger.blank();
+
+    // 4. System information (auto-detect with user selection if needed)
     const systemConfig = await promptSystemInfo();
 
-    // 4. Build configuration with defaults
+    // 5. Build configuration with defaults
     const config: FullConfig = {
       project: projectInfo,
       language: languageConfig,
@@ -410,10 +419,7 @@ async function initSimple(targetDir: string, force: boolean = false): Promise<vo
         diagram_types: ['flowchart', 'sequence', 'class'],
         code_reference_format: 'file:line'
       },
-      git: {
-        ai_git_operations: false,
-        ignore_patterns: ['claude/temp/']
-      },
+      git: gitConfig,
       advanced: {
         max_tags: 100,
         max_topics: 50,
@@ -435,6 +441,12 @@ async function initSimple(targetDir: string, force: boolean = false): Promise<vo
     spinner.start('Initializing memory system...');
     await initialize(config, targetDir);
     spinner.succeed('Memory system initialized');
+
+    // 7. Auto-commit if enabled
+    if (config.git.auto_commit_memory_updates) {
+      const { autoCommitMemoryUpdates } = await import('./utils/auto-commit.js');
+      await autoCommitMemoryUpdates(targetDir, config.git, config.paths.base_dir);
+    }
 
     logger.blank();
     logger.success('✅ Initialization complete!');
