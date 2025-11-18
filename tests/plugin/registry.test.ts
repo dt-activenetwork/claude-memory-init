@@ -1,0 +1,362 @@
+/**
+ * Tests for PluginRegistry
+ */
+
+import { describe, it, expect, beforeEach } from '@jest/globals';
+import { PluginRegistry } from '../../src/plugin/registry.js';
+import type { Plugin, CoreConfig } from '../../src/plugin/types.js';
+
+describe('PluginRegistry', () => {
+  let registry: PluginRegistry;
+
+  // Helper function to create a valid plugin
+  const createPlugin = (name: string, commandName: string = name, deps: string[] = []): Plugin => ({
+    meta: {
+      name,
+      commandName,
+      version: '1.0.0',
+      description: `Test plugin ${name}`,
+      dependencies: deps.length > 0 ? deps : undefined
+    },
+    configuration: {
+      needsConfiguration: false,
+      configure: async () => ({ enabled: true, options: {} }),
+      getSummary: () => []
+    },
+    hooks: {
+      execute: async () => {}
+    }
+  });
+
+  beforeEach(() => {
+    registry = new PluginRegistry();
+  });
+
+  describe('register', () => {
+    it('should register a valid plugin', () => {
+      const plugin = createPlugin('test-plugin', 'test');
+
+      expect(() => registry.register(plugin)).not.toThrow();
+      expect(registry.has('test-plugin')).toBe(true);
+      expect(registry.count()).toBe(1);
+    });
+
+    it('should throw error when registering plugin without meta', () => {
+      const invalidPlugin = {} as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow('Plugin must have metadata');
+    });
+
+    it('should throw error when registering plugin without name', () => {
+      const invalidPlugin = {
+        meta: { version: '1.0.0', description: 'Test' }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow('Plugin must have a valid name');
+    });
+
+    it('should throw error when registering plugin without commandName', () => {
+      const invalidPlugin = {
+        meta: { name: 'test', version: '1.0.0', description: 'Test' }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow('must have a valid commandName');
+    });
+
+    it('should throw error when registering plugin without version', () => {
+      const invalidPlugin = {
+        meta: { name: 'test', commandName: 'test', description: 'Test' }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow('must have a valid version');
+    });
+
+    it('should throw error when registering plugin without description', () => {
+      const invalidPlugin = {
+        meta: { name: 'test', commandName: 'test', version: '1.0.0' }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow('must have a description');
+    });
+
+    it('should throw error when registering duplicate plugin name', () => {
+      const plugin1 = createPlugin('test-plugin', 'test1');
+      const plugin2 = createPlugin('test-plugin', 'test2');
+
+      registry.register(plugin1);
+
+      expect(() => registry.register(plugin2)).toThrow(
+        "Plugin with name 'test-plugin' is already registered"
+      );
+    });
+
+    it('should throw error when registering duplicate commandName', () => {
+      const plugin1 = createPlugin('plugin1', 'test');
+      const plugin2 = createPlugin('plugin2', 'test');
+
+      registry.register(plugin1);
+
+      expect(() => registry.register(plugin2)).toThrow(
+        "Plugin commandName 'test' is already used by plugin 'plugin1'"
+      );
+    });
+
+    it('should validate dependencies array', () => {
+      const invalidPlugin = {
+        meta: {
+          name: 'test',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test',
+          dependencies: 'not-an-array' as any
+        }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow('dependencies must be an array');
+    });
+
+    it('should validate configuration structure', () => {
+      const invalidPlugin = {
+        meta: {
+          name: 'test',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test'
+        },
+        configuration: {
+          needsConfiguration: 'yes' as any,
+          configure: async () => ({ enabled: true, options: {} }),
+          getSummary: () => []
+        }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow(
+        'configuration.needsConfiguration must be a boolean'
+      );
+    });
+
+    it('should validate hooks are functions', () => {
+      const invalidPlugin = {
+        meta: {
+          name: 'test',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test'
+        },
+        hooks: {
+          execute: 'not a function' as any
+        }
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow(
+        "hook 'execute' must be a function"
+      );
+    });
+
+    it('should validate commands structure', () => {
+      const invalidPlugin = {
+        meta: {
+          name: 'test',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test'
+        },
+        commands: [
+          {
+            name: 'cmd1',
+            description: 'Command 1',
+            action: 'not a function' as any
+          }
+        ]
+      } as Plugin;
+
+      expect(() => registry.register(invalidPlugin)).toThrow(
+        "command 'cmd1' must have an action function"
+      );
+    });
+  });
+
+  describe('get', () => {
+    it('should retrieve a registered plugin', () => {
+      const plugin = createPlugin('test-plugin', 'test');
+      registry.register(plugin);
+
+      const retrieved = registry.get('test-plugin');
+
+      expect(retrieved).toBe(plugin);
+      expect(retrieved.meta.name).toBe('test-plugin');
+    });
+
+    it('should throw error when getting non-existent plugin', () => {
+      expect(() => registry.get('non-existent')).toThrow(
+        "Plugin 'non-existent' not found in registry"
+      );
+    });
+  });
+
+  describe('getByCommandName', () => {
+    it('should retrieve plugin by command name', () => {
+      const plugin = createPlugin('test-plugin', 'test-cmd');
+      registry.register(plugin);
+
+      const retrieved = registry.getByCommandName('test-cmd');
+
+      expect(retrieved).toBe(plugin);
+      expect(retrieved?.meta.commandName).toBe('test-cmd');
+    });
+
+    it('should return undefined for non-existent command name', () => {
+      const retrieved = registry.getByCommandName('non-existent');
+
+      expect(retrieved).toBeUndefined();
+    });
+  });
+
+  describe('getAll', () => {
+    it('should return empty array when no plugins registered', () => {
+      const plugins = registry.getAll();
+
+      expect(plugins).toEqual([]);
+    });
+
+    it('should return all registered plugins', () => {
+      const plugin1 = createPlugin('plugin1', 'cmd1');
+      const plugin2 = createPlugin('plugin2', 'cmd2');
+      const plugin3 = createPlugin('plugin3', 'cmd3');
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+      registry.register(plugin3);
+
+      const plugins = registry.getAll();
+
+      expect(plugins).toHaveLength(3);
+      expect(plugins).toContain(plugin1);
+      expect(plugins).toContain(plugin2);
+      expect(plugins).toContain(plugin3);
+    });
+  });
+
+  describe('has', () => {
+    it('should return true for registered plugin', () => {
+      const plugin = createPlugin('test-plugin', 'test');
+      registry.register(plugin);
+
+      expect(registry.has('test-plugin')).toBe(true);
+    });
+
+    it('should return false for non-registered plugin', () => {
+      expect(registry.has('non-existent')).toBe(false);
+    });
+  });
+
+  describe('getEnabled', () => {
+    it('should return all plugins when config is empty', () => {
+      const plugin1 = createPlugin('plugin1', 'cmd1');
+      const plugin2 = createPlugin('plugin2', 'cmd2');
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+
+      const config: CoreConfig = {
+        project: { name: 'test', root: '.' },
+        output: { base_dir: 'claude' },
+        plugins: {}
+      };
+
+      const enabled = registry.getEnabled(config);
+
+      expect(enabled).toHaveLength(2);
+    });
+
+    it('should filter out explicitly disabled plugins', () => {
+      const plugin1 = createPlugin('plugin1', 'cmd1');
+      const plugin2 = createPlugin('plugin2', 'cmd2');
+      const plugin3 = createPlugin('plugin3', 'cmd3');
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+      registry.register(plugin3);
+
+      const config: CoreConfig = {
+        project: { name: 'test', root: '.' },
+        output: { base_dir: 'claude' },
+        plugins: {
+          plugin1: { enabled: true, options: {} },
+          plugin2: { enabled: false, options: {} },
+          plugin3: { enabled: true, options: {} }
+        }
+      };
+
+      const enabled = registry.getEnabled(config);
+
+      expect(enabled).toHaveLength(2);
+      expect(enabled.map(p => p.meta.name)).toEqual(['plugin1', 'plugin3']);
+    });
+
+    it('should include plugins not mentioned in config', () => {
+      const plugin1 = createPlugin('plugin1', 'cmd1');
+      const plugin2 = createPlugin('plugin2', 'cmd2');
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+
+      const config: CoreConfig = {
+        project: { name: 'test', root: '.' },
+        output: { base_dir: 'claude' },
+        plugins: {
+          plugin1: { enabled: true, options: {} }
+        }
+      };
+
+      const enabled = registry.getEnabled(config);
+
+      expect(enabled).toHaveLength(2);
+    });
+  });
+
+  describe('count', () => {
+    it('should return 0 when no plugins registered', () => {
+      expect(registry.count()).toBe(0);
+    });
+
+    it('should return correct count of registered plugins', () => {
+      const plugin1 = createPlugin('plugin1', 'cmd1');
+      const plugin2 = createPlugin('plugin2', 'cmd2');
+
+      registry.register(plugin1);
+      expect(registry.count()).toBe(1);
+
+      registry.register(plugin2);
+      expect(registry.count()).toBe(2);
+    });
+  });
+
+  describe('clear', () => {
+    it('should remove all plugins from registry', () => {
+      const plugin1 = createPlugin('plugin1', 'cmd1');
+      const plugin2 = createPlugin('plugin2', 'cmd2');
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+
+      expect(registry.count()).toBe(2);
+
+      registry.clear();
+
+      expect(registry.count()).toBe(0);
+      expect(registry.has('plugin1')).toBe(false);
+      expect(registry.has('plugin2')).toBe(false);
+    });
+
+    it('should allow re-registration after clear', () => {
+      const plugin = createPlugin('test-plugin', 'test');
+
+      registry.register(plugin);
+      registry.clear();
+
+      expect(() => registry.register(plugin)).not.toThrow();
+      expect(registry.has('test-plugin')).toBe(true);
+    });
+  });
+});
