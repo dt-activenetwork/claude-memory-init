@@ -135,39 +135,187 @@
 ```markdown
 你的任务是实现 claude-init v2.0 的插件系统核心框架。
 
-**背景**:
-- 项目是一个 CLI 工具，使用 TypeScript 编写
-- 我们正在将单体架构重构为插件化架构
-- 目标是让每个功能都作为插件实现
+## 项目信息
 
-**设计文档**:
-请仔细阅读 `docs/PLUGIN_ARCHITECTURE_REFACTOR.md`，特别是"插件系统接口"章节。
+**仓库**: /home/dai/code/claude-memory-init
+**当前版本**: v1.0.0
+**目标版本**: v2.0.0-alpha
+**包管理器**: pnpm（必须使用 pnpm，不是 npm/yarn）
+**Node 版本**: >= 18.0.0
+**模块系统**: ESM (type: "module")
 
-**你需要完成**:
-1. 定义插件类型系统 (`src/plugin/types.ts`)
-2. 实现插件注册表 (`src/plugin/registry.ts`)
-3. 实现插件加载器 (`src/plugin/loader.ts`)
-4. 实现插件上下文 (`src/plugin/context.ts`)
+## 重要准则 🔥
 
-**详细要求**:
-见上面的 Task 1.1 - 1.4 清单
+### 1. 充分利用 1M Context 窗口
 
-**验收标准**:
-- 所有 TypeScript 类型定义正确
-- 插件可以成功注册和加载
-- 依赖排序算法正确（拓扑排序）
-- 单元测试覆盖率 > 80%
-- 代码有清晰的注释
+**我们有 1M context 窗口，不要省 token！**
 
-**输出**:
-1. 实现的代码文件
-2. 单元测试文件
-3. 简短的实现报告（说明你的设计决策）
+- ✅ **完整阅读所有设计文档**（不要只读摘要）
+  - `docs/README.md` - 文档索引
+  - `docs/REFACTOR_SUMMARY.md` - 重构总览
+  - `docs/PLUGIN_ARCHITECTURE_REFACTOR.md` - 插件架构（重点）
+  - `docs/INTERACTIVE_CLI_DESIGN.md` - 交互式 CLI
+  - `docs/CLI_COMMANDS_DESIGN.md` - 命令结构
+  - 其他相关文档
 
-**注意事项**:
-- 使用现有的工具函数（logger, file-ops 等）
-- 遵循项目的代码风格
-- 确保类型安全
+- ✅ **完整阅读代码文件**（不要只读前 100 行）
+  - 阅读整个文件，理解完整上下文
+  - 查看所有相关的工具函数
+  - 理解现有的代码结构
+
+- ✅ **检索完整的库文档**（优先查询网络）
+  - 在编码前，先检索你要使用的库的官方文档
+  - 了解最新的 API 和最佳实践
+  - 查看 TypeScript 类型定义
+
+**为什么重要？**
+- 避免遗漏关键信息
+- 减少来回确认次数
+- 提高代码质量和一致性
+- 加快开发速度
+
+### 2. TypeScript 编码规范
+
+**必须遵守**:
+- ✅ **使用 TypeScript**（不要用 JavaScript）
+- ✅ **类型完备**（所有函数都要有完整的类型签名）
+- ✅ **避免 any**（除非确实无法避免）
+- ✅ **导出所有公开类型**（便于其他模块使用）
+- ✅ **使用泛型**（提高复用性）
+- ✅ **严格模式**（tsconfig strict: true）
+
+**示例**:
+
+```typescript
+// ✅ 推荐：类型完备
+export const loadPlugin = async (
+  name: string,
+  context: PluginContext
+): Promise<Plugin> => {
+  const plugin = registry.get(name);
+  return plugin;
+};
+
+// ❌ 避免：类型不完整
+export const loadPlugin = async (name, context) => {  // 缺少类型
+  return registry.get(name);
+};
+```
+
+### 3. 函数式编程优先
+
+**尽可能使用函数式风格**:
+
+- ✅ **优先使用纯函数**（无副作用）
+- ✅ **避免可变状态**（使用 const，避免 let）
+- ✅ **使用函数组合**（小函数组合成大函数）
+- ✅ **优先使用 map/filter/reduce**（而非 for 循环）
+- ✅ **使用函数表达式**（const fn = () => {} 而非 function fn()）
+
+**示例**:
+
+```typescript
+// ✅ 推荐：函数式
+export const getEnabledPlugins = (
+  plugins: Plugin[],
+  config: CoreConfig
+): Plugin[] => {
+  return plugins.filter(plugin =>
+    config.plugins[plugin.meta.name]?.enabled !== false
+  );
+};
+
+export const sortByPriority = (plugins: Plugin[]): Plugin[] => {
+  return [...plugins].sort((a, b) =>
+    (a.meta.priority ?? 100) - (b.meta.priority ?? 100)
+  );
+};
+
+// ❌ 避免：命令式
+export function getEnabledPlugins(plugins, config) {
+  let result = [];
+  for (let i = 0; i < plugins.length; i++) {
+    if (config.plugins[plugins[i].meta.name]?.enabled !== false) {
+      result.push(plugins[i]);
+    }
+  }
+  return result;
+}
+```
+
+**何时使用类**:
+- 当需要维护内部状态时（如 PluginRegistry, PluginLoader）
+- 当需要多个相关方法时
+- 即使使用类，方法内部也应该是函数式的
+
+### 4. 库文档检索
+
+**在使用任何库之前，必须检索其最新文档！**
+
+**本项目使用的库**:
+1. **Commander.js v12**
+   - 检索: Commander.js 官方文档
+   - 关注: 命令定义、选项解析、子命令
+
+2. **Inquirer.js v9**
+   - 检索: Inquirer.js 官方文档
+   - 关注: checkbox, list, confirm, input 类型
+
+3. **i18next v23** (Phase 7)
+   - 检索: i18next 官方文档
+   - 关注: 初始化、命名空间、插值、复数
+
+4. **Simple-git v3**
+   - 检索: Simple-git 官方文档
+   - 关注: clone, commit, push, branch 操作
+
+5. **Ora v8**
+   - 检索: Ora 官方文档
+   - 关注: spinner API
+
+**检索方法**:
+使用 WebSearch 或 WebFetch 工具查询官方文档，了解：
+- 最新的 API 用法
+- TypeScript 类型定义
+- 最佳实践
+- 常见陷阱
+
+### 5. 测试要求
+- ✅ 为每个功能编写单元测试
+- ✅ 使用 Jest 测试框架
+- ✅ 覆盖率 > 80%
+- ✅ 测试边界情况
+- ✅ Mock 外部依赖（Git, GitHub, 文件系统等）
+- ✅ 测试必须通过
+- ✅ 测试文件使用 TypeScript
+
+### 6. 汇报要求
+完成后使用标准模板汇报（见 IMPLEMENTATION_TASKS.md）：
+- ✅ 任务摘要
+- ✅ 实现的文件列表
+- ✅ 关键设计决策（为什么这样实现）
+- ✅ 测试结果（覆盖率、通过率）
+- ✅ 遇到的问题和解决方案
+- ✅ 检索的文档资源（库文档链接）
+- ✅ 下一步建议
+- ✅ 关键代码示例
+
+### 7. 协作规范
+- ✅ 不要修改其他 subagent 负责的文件
+- ✅ 如果需要修改共享文件，先汇报讨论
+- ✅ 使用 Git 分支（feature/phase-X-Y）
+- ✅ 提交信息清晰（feat/fix/refactor/test）
+- ✅ 使用 pnpm 命令（pnpm install, pnpm build, pnpm test）
+
+### 8. 问题处理
+遇到以下情况必须立即汇报：
+- ⚠️ 设计文档有歧义或矛盾
+- ⚠️ 发现设计缺陷
+- ⚠️ 技术难点无法解决
+- ⚠️ 依赖的功能不存在或不完整
+- ⚠️ 时间预计严重偏差
+- ⚠️ 库的文档与预期不符
+- ⚠️ TypeScript 类型定义问题
 ```
 
 ---
@@ -1723,25 +1871,39 @@ PRs are created automatically when syncing changes.
 ### 所有任务必须满足
 
 1. **代码质量**:
-   - [ ] TypeScript 编译无错误
+   - [ ] TypeScript 编译无错误（strict mode）
    - [ ] ESLint 检查通过
-   - [ ] 代码有适当注释
+   - [ ] 所有函数有完整类型签名
+   - [ ] 避免使用 any 类型
+   - [ ] 导出所有公开类型
+   - [ ] 优先使用函数式编程
+   - [ ] 代码有完整的 JSDoc 注释
    - [ ] 遵循项目代码风格
 
 2. **测试质量**:
    - [ ] 单元测试覆盖率 > 80%
    - [ ] 边界情况有测试
    - [ ] Mock 使用合理
+   - [ ] 测试使用 TypeScript 编写
+   - [ ] 所有测试通过
 
 3. **文档质量**:
-   - [ ] JSDoc 注释完整
+   - [ ] JSDoc 注释完整（中文或英文）
    - [ ] 复杂逻辑有解释
    - [ ] 使用示例清晰
+   - [ ] 检索的库文档链接已记录
 
 4. **用户体验**:
-   - [ ] 错误信息清晰
+   - [ ] 错误信息清晰（支持 i18n）
    - [ ] 交互流程流畅
    - [ ] 进度反馈及时
+
+5. **技术栈遵守**:
+   - [ ] 使用 pnpm 包管理
+   - [ ] 使用 TypeScript（不用 JavaScript）
+   - [ ] ESM 模块系统
+   - [ ] 函数式优先
+   - [ ] 类型完备
 
 ---
 

@@ -134,50 +134,213 @@
 ```markdown
 ## 通用要求
 
-### 1. 阅读材料
+### 1. 阅读材料（必需，不要跳过）
+
+**🔥 重要：我们使用 1M context 窗口，充分利用上下文！**
+
 在开始编码前，你必须：
-- ✅ 阅读相关的设计文档
+- ✅ **完整阅读所有相关设计文档**（不要只读一部分）
+  - 你的任务对应的设计文档
+  - REFACTOR_SUMMARY.md（理解整体架构）
+  - PLUGIN_ARCHITECTURE_REFACTOR.md（理解插件系统）
+  - 其他相关文档
+- ✅ **完整阅读现有代码**（不要为了省 token 只读一部分）
+  - 如果有迁移任务，完整阅读需要迁移的文件
+  - 阅读相关的工具函数（logger, file-ops 等）
+- ✅ **检索网络文档**（优先查询最新的库文档）
+  - inquirer.js 官方文档
+  - i18next 官方文档
+  - Commander.js 官方文档
+  - TypeScript 最佳实践
+  - 其他使用的库
 - ✅ 理解任务目标和验收标准
-- ✅ 查看现有代码（如果有迁移任务）
 - ✅ 理解依赖关系
 
-### 2. 编码规范
-- ✅ 使用 TypeScript 严格模式
-- ✅ 遵循项目现有的代码风格
-- ✅ 添加完整的 JSDoc 注释
-- ✅ 处理错误和边界情况
-- ✅ 使用现有的工具函数（logger, file-ops 等）
+**为什么要完整阅读？**
+- 我们有 1M context 窗口，不需要省 token
+- 完整的上下文能避免遗漏重要细节
+- 减少来回确认，提高效率
 
-### 3. 测试要求
+### 2. 技术栈和规范
+
+**项目配置**:
+- ✅ **包管理器**: pnpm（不是 npm 或 yarn）
+- ✅ **语言**: TypeScript（必须，不要用 JavaScript）
+- ✅ **模块系统**: ESM (type: "module")
+- ✅ **Node 版本**: >= 18.0.0
+
+**编码风格**:
+- ✅ **函数式优先**（尽可能使用函数式编程）
+  - 优先使用纯函数
+  - 避免可变状态
+  - 使用 const，避免 let
+  - 优先使用 map/filter/reduce
+- ✅ **类型完备**（TypeScript 严格模式）
+  - 所有函数都要有完整的类型签名
+  - 避免使用 any（除非必要）
+  - 使用泛型提高复用性
+  - 导出所有公开的类型
+- ✅ **命名清晰**
+  - 函数名: 动词开头（createContext, loadPlugin）
+  - 类型名: 名词（Plugin, PluginContext）
+  - 布尔值: is/has 开头（isEnabled, hasCommands）
+
+**示例（推荐的风格）**:
+
+```typescript
+// ✅ 推荐：函数式 + 类型完备
+export const createPluginContext = async (
+  projectRoot: string,
+  config: CoreConfig
+): Promise<PluginContext> => {
+  const logger = createLogger();
+  const fs = createFileOperations();
+  const template = createTemplateEngine();
+
+  return {
+    projectRoot,
+    targetDir: projectRoot,
+    config: {
+      core: config,
+      plugins: new Map()
+    },
+    shared: new Map(),
+    logger,
+    fs,
+    template,
+    ui: {} as UIComponents,
+    i18n: {} as I18nAPI
+  };
+};
+
+// ❌ 避免：面向对象 + 类型不完整
+class ContextBuilder {
+  private root: string;
+
+  setRoot(root: any) {  // any 类型
+    this.root = root;
+    return this;
+  }
+
+  build() {  // 缺少返回类型
+    return { ... };
+  }
+}
+```
+
+### 3. 编码规范
+- ✅ 使用 TypeScript 严格模式（tsconfig strict: true）
+- ✅ 遵循项目现有的代码风格
+- ✅ 添加完整的 JSDoc 注释（中文或英文）
+- ✅ 处理错误和边界情况（使用类型系统）
+- ✅ 使用现有的工具函数（logger, file-ops 等）
+- ✅ 导出所有公开的类型和接口
+
+### 4. 依赖和库使用
+
+**已有依赖**（直接使用）:
+- Commander.js v12 - CLI 框架
+- Inquirer.js v9 - 交互式输入
+- Ora v8 - 进度显示
+- Chalk v5 - 彩色输出
+- Simple-git v3 - Git 操作
+- YAML v2 - 配置文件
+- fs-extra v11 - 文件操作
+
+**需要添加**（Phase 7）:
+- i18next v23 - 国际化
+- i18next-fs-backend v2 - 文件后端
+
+**使用前必须**:
+- ✅ 检索官方文档（使用最新的 API）
+- ✅ 查看 TypeScript 类型定义
+- ✅ 了解最佳实践
+
+### 5. 测试要求
 - ✅ 为每个功能编写单元测试
+- ✅ 使用 Jest 测试框架
 - ✅ 覆盖率 > 80%
 - ✅ 测试边界情况
 - ✅ Mock 外部依赖（Git, GitHub, 文件系统等）
+- ✅ 测试文件命名: `*.test.ts`
 - ✅ 测试必须通过
 
-### 4. 汇报要求
+**测试示例**:
+
+```typescript
+// tests/plugin/registry.test.ts
+import { describe, it, expect } from '@jest/globals';
+import { PluginRegistry } from '../../src/plugin/registry';
+import type { Plugin } from '../../src/plugin/types';
+
+describe('PluginRegistry', () => {
+  const mockPlugin: Plugin = {
+    meta: {
+      name: 'test-plugin',
+      commandName: 'test',
+      version: '1.0.0',
+      description: 'Test plugin'
+    },
+    commands: []
+  };
+
+  it('should register a plugin', () => {
+    const registry = new PluginRegistry();
+    registry.register(mockPlugin);
+
+    expect(registry.has('test-plugin')).toBe(true);
+    expect(registry.get('test-plugin')).toEqual(mockPlugin);
+  });
+
+  it('should throw error on duplicate registration', () => {
+    const registry = new PluginRegistry();
+    registry.register(mockPlugin);
+
+    expect(() => registry.register(mockPlugin)).toThrow();
+  });
+});
+```
+
+### 6. 汇报要求
 完成后使用标准模板汇报（见 IMPLEMENTATION_TASKS.md）：
 - ✅ 任务摘要
 - ✅ 实现的文件列表
 - ✅ 关键设计决策
-- ✅ 测试结果
-- ✅ 遇到的问题
+- ✅ 测试结果（覆盖率、通过率）
+- ✅ 遇到的问题和解决方案
 - ✅ 下一步建议
-- ✅ 代码示例
+- ✅ 关键代码示例
 
-### 5. 协作规范
+### 7. 协作规范
 - ✅ 不要修改其他 subagent 负责的文件
 - ✅ 如果需要修改共享文件，先汇报讨论
 - ✅ 使用 Git 分支（feature/phase-X-Y）
 - ✅ 提交信息清晰（feat/fix/refactor/test）
+- ✅ 使用 pnpm（不是 npm/yarn）
 
-### 6. 问题处理
+### 8. 问题处理
 遇到以下情况必须立即汇报：
 - ⚠️ 设计文档有歧义或矛盾
 - ⚠️ 发现设计缺陷
 - ⚠️ 技术难点无法解决
 - ⚠️ 依赖的功能不存在或不完整
 - ⚠️ 时间预计严重偏差
+- ⚠️ 库的文档与预期不符
+
+### 9. Context 窗口利用
+
+**🔥 我们有 1M context 窗口，充分利用！**
+
+- ✅ **完整阅读文件**，不要只读前 100 行
+- ✅ **阅读所有设计文档**，不要只读摘要
+- ✅ **检索完整的库文档**，不要只看示例
+- ✅ **理解完整的上下文**，不要碎片化理解
+
+**为什么重要？**
+- 避免遗漏关键信息
+- 减少来回确认次数
+- 提高代码质量
+- 加快开发速度
 ```
 
 ---
@@ -201,7 +364,35 @@
 - 目标是让每个功能都作为插件实现
 
 **设计文档**:
-请仔细阅读 `docs/PLUGIN_ARCHITECTURE_REFACTOR.md`，特别是"插件系统接口"章节。
+
+🔥 **请完整阅读以下所有设计文档（不要跳过，利用 1M context）**:
+
+1. `docs/README.md` - 文档索引，了解整体结构
+2. `docs/REFACTOR_SUMMARY.md` - 重构总览，理解大局
+3. `docs/PLUGIN_ARCHITECTURE_REFACTOR.md` - **重点**，插件系统详细设计
+4. `docs/INTERACTIVE_CLI_DESIGN.md` - 交互式流程设计
+5. `docs/CLI_COMMANDS_DESIGN.md` - 命令结构设计
+6. `docs/IMPLEMENTATION_TASKS.md` - 查看 Phase 1 的详细任务清单
+
+**为什么要读这么多？**
+- 理解整体架构，避免设计不一致
+- 了解插件如何与 CLI 集成
+- 理解上下文和依赖关系
+- 我们有 1M context，充分利用！
+
+**必读章节**:
+- `PLUGIN_ARCHITECTURE_REFACTOR.md` 的"插件系统接口"章节（核心）
+- `PLUGIN_ARCHITECTURE_REFACTOR.md` 的所有插件示例（理解如何使用）
+
+**库文档检索**:
+
+在开始编码前，请先检索以下库的官方文档：
+
+1. **TypeScript** - 最新的类型系统特性和最佳实践
+2. 了解本项目已有的工具：
+   - 阅读 `src/utils/logger.ts` - 日志工具
+   - 阅读 `src/utils/file-ops.ts` - 文件操作
+   - 阅读 `src/core/template-engine.ts` - 模板引擎
 
 **你需要完成**:
 1. 定义插件类型系统 (`src/plugin/types.ts`)
