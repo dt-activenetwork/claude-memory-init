@@ -4,13 +4,12 @@
 
 ## 📚 文档索引
 
-### 核心文档
+### 设计文档（阅读顺序）
 
-1. **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)** - 重构方案总览
+1. **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)** - 重构方案总览 ⭐ 从这里开始
    - 重构目标和核心改进
    - 实施计划（9 个阶段，4-5 周）
    - 风险评估和成功指标
-   - **从这里开始阅读**
 
 2. **[PLUGIN_ARCHITECTURE_REFACTOR.md](./PLUGIN_ARCHITECTURE_REFACTOR.md)** - 插件化架构设计
    - 插件系统接口定义
@@ -36,6 +35,21 @@
    - 语言检测策略
    - 完整的翻译示例
 
+### 实施文档（开发者必读）
+
+6. **[IMPLEMENTATION_TASKS.md](./IMPLEMENTATION_TASKS.md)** - 实施任务分配 ⭐ 开发必读
+   - 9 个开发阶段详细任务清单
+   - 每个任务的输入、输出、验收标准
+   - Subagent prompt 模板
+   - 2 个额外任务（Prompt 规范、mem 改造）
+
+7. **[SUBAGENT_ORCHESTRATION.md](./SUBAGENT_ORCHESTRATION.md)** - Subagent 编排指南 ⭐ 主控必读
+   - 任务并行策略
+   - Subagent 通用指令
+   - 汇报模板和审查清单
+   - 进度跟踪表
+   - 启动脚本示例
+
 ---
 
 ## 🎯 快速导航
@@ -50,17 +64,25 @@
 - 阅读顺序：`REFACTOR_SUMMARY.md` → `PLUGIN_ARCHITECTURE_REFACTOR.md` → `CLI_COMMANDS_DESIGN.md`
 - 关注点：插件系统设计、命令架构、可扩展性
 
+#### 主控 Agent（任务编排）⭐ 新增
+- 阅读顺序：`SUBAGENT_ORCHESTRATION.md` → `IMPLEMENTATION_TASKS.md` → 所有设计文档
+- 关注点：任务分配、并行策略、进度跟踪、质量审查
+
+#### Subagent（执行开发）⭐ 新增
+- 阅读顺序：收到的任务 prompt → 相关设计文档 → `IMPLEMENTATION_TASKS.md`
+- 关注点：任务要求、验收标准、现有代码、测试要求
+
 #### 前端开发 / CLI 开发
-- 阅读顺序：`INTERACTIVE_CLI_DESIGN.md` → `CLI_COMMANDS_DESIGN.md` → `I18N_DESIGN.md`
-- 关注点：交互流程、UI 组件、命令实现
+- 阅读顺序：`INTERACTIVE_CLI_DESIGN.md` → `CLI_COMMANDS_DESIGN.md` → `I18N_DESIGN.md` → `IMPLEMENTATION_TASKS.md`
+- 关注点：交互流程、UI 组件、命令实现、具体任务清单
 
 #### 插件开发者
-- 阅读顺序：`PLUGIN_ARCHITECTURE_REFACTOR.md` → `CLI_COMMANDS_DESIGN.md`
-- 关注点：插件接口、命令注册、生命周期钩子
+- 阅读顺序：`PLUGIN_ARCHITECTURE_REFACTOR.md` → `CLI_COMMANDS_DESIGN.md` → `IMPLEMENTATION_TASKS.md`
+- 关注点：插件接口、命令注册、生命周期钩子、实现任务
 
 #### 国际化贡献者
-- 阅读顺序：`I18N_DESIGN.md`
-- 关注点：翻译文件格式、命名空间、翻译流程
+- 阅读顺序：`I18N_DESIGN.md` → `IMPLEMENTATION_TASKS.md` (Phase 7)
+- 关注点：翻译文件格式、命名空间、翻译流程、实施任务
 
 ---
 
