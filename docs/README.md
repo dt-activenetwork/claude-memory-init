@@ -37,18 +37,25 @@
 
 ### 实施文档（开发者必读）
 
-6. **[IMPLEMENTATION_TASKS.md](./IMPLEMENTATION_TASKS.md)** - 实施任务分配 ⭐ 开发必读
+6. **[START_HERE.md](./START_HERE.md)** - 实施启动指南 ⭐⭐ 开始实施从这里
+   - 准备检查清单
+   - 推荐的启动顺序
+   - 完整的 Subagent 1 启动 prompt
+   - 详细的代码示例和要求
+   - 进度跟踪方法
+
+7. **[IMPLEMENTATION_TASKS.md](./IMPLEMENTATION_TASKS.md)** - 实施任务分配 ⭐ 开发必读
    - 9 个开发阶段详细任务清单
    - 每个任务的输入、输出、验收标准
-   - Subagent prompt 模板
+   - 14 个 Subagent prompt 模板
    - 2 个额外任务（Prompt 规范、mem 改造）
 
-7. **[SUBAGENT_ORCHESTRATION.md](./SUBAGENT_ORCHESTRATION.md)** - Subagent 编排指南 ⭐ 主控必读
+8. **[SUBAGENT_ORCHESTRATION.md](./SUBAGENT_ORCHESTRATION.md)** - Subagent 编排指南 ⭐ 主控必读
    - 任务并行策略
-   - Subagent 通用指令
+   - Subagent 通用指令（1M context + 函数式 + 类型完备）
    - 汇报模板和审查清单
    - 进度跟踪表
-   - 启动脚本示例
+   - 编码规范和示例
 
 ---
 
@@ -64,13 +71,15 @@
 - 阅读顺序：`REFACTOR_SUMMARY.md` → `PLUGIN_ARCHITECTURE_REFACTOR.md` → `CLI_COMMANDS_DESIGN.md`
 - 关注点：插件系统设计、命令架构、可扩展性
 
-#### 主控 Agent（任务编排）⭐ 新增
-- 阅读顺序：`SUBAGENT_ORCHESTRATION.md` → `IMPLEMENTATION_TASKS.md` → 所有设计文档
-- 关注点：任务分配、并行策略、进度跟踪、质量审查
+#### 主控 Agent（任务编排）⭐ 开始实施
+- **第一步**: `START_HERE.md` - 启动第一批任务
+- 阅读顺序：`START_HERE.md` → `SUBAGENT_ORCHESTRATION.md` → `IMPLEMENTATION_TASKS.md`
+- 关注点：启动顺序、任务分配、并行策略、进度跟踪、质量审查
 
-#### Subagent（执行开发）⭐ 新增
-- 阅读顺序：收到的任务 prompt → 相关设计文档 → `IMPLEMENTATION_TASKS.md`
-- 关注点：任务要求、验收标准、现有代码、测试要求
+#### Subagent（执行开发）⭐ 接收任务
+- **第一步**: 完整阅读所有设计文档（利用 1M context）
+- 阅读顺序：收到的 prompt → 所有设计文档 → 现有代码 → 检索库文档
+- 关注点：任务要求、验收标准、编码规范、测试要求
 
 #### 前端开发 / CLI 开发
 - 阅读顺序：`INTERACTIVE_CLI_DESIGN.md` → `CLI_COMMANDS_DESIGN.md` → `I18N_DESIGN.md` → `IMPLEMENTATION_TASKS.md`
