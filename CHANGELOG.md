@@ -7,43 +7,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
+## [2.0.0-alpha] - 2025-01-18
 
-- **Remote Repository Support**: Initialize from remote git repositories
-  - Added `--repo <url>` option to `init` command
-  - Automatically clone to OS temp directory (e.g., `/tmp/claude-memory-xxxxx`)
-  - Auto-cleanup of temporary directories after initialization
-  - Fallback to local `mem/` directory when `--repo` not specified
+### 🎉 Major Refactor - Plugin-Based Architecture
 
-- **Sync and PR Creation**: New `sync` command for team collaboration
-  - Compare local memory system with remote repository
-  - Smart filtering: only system prompts (`prompt/`) included in PRs
-  - Semantic memories (`memory/semantic/`, `memory/episodic/`) excluded from PRs
-  - Hash-based branch naming: `sp-{hash}` format
-    - Hash generated from: username + date + clean filenames
-    - Clean filenames: numbers and extensions removed (e.g., `1.objectives.md` → `objectives`)
-    - Short 8-character MD5 hash for brevity
-  - Uses git config user.name and user.email for commits
-  - Single PR label: `system-prompt-update` for all system prompt PRs
-  - Options: `--pr` to create branch, `--no-cleanup` to keep temp dir
+**Breaking Changes**: Complete rewrite with new architecture and CLI design.
 
-- **Enhanced Commit Messages**: Descriptive PR-ready commits
-  - Include author information from git config
-  - List all modified system memory files
-  - Clear separation of what's included vs excluded
-  - Guidance for pushing and creating PR
+#### Added
 
-### Changed
+- **Plugin System**: Modular plugin-based architecture
+  - 4 core plugins: memory-system, prompt-presets, git, system-detector
+  - Plugin interface with lifecycle hooks
+  - Plugin configuration flow
+  - Dynamic plugin command registration
 
-- `initialize()` function now accepts optional `memoryRepoUrl` parameter
-- `copyMemorySystemTemplate()` supports both remote and local sources
-- All init modes (`--quick`, `--interactive`, `--config`) support `--repo` option
+- **Interactive CLI**: Conversational setup experience
+  - No parameters to remember
+  - Dynamic step calculation based on selected plugins
+  - Visual selection with checkboxes
+  - Intelligent defaults
+  - Real-time feedback
 
-### Documentation
+- **i18n Support**: Multi-language support
+  - English (default)
+  - Simplified Chinese
+  - Auto-detection from system locale
+  - 5 translation namespaces
 
-- Added `REMOTE_SYNC.md` with detailed sync workflow documentation
-- Updated `README.md` with remote repository and sync examples
-- Added usage examples for team collaboration scenarios
+- **Memory System Plugin**:
+  - `memory system-add` command for contributing system-level knowledge
+  - Interactive memory creation flow
+  - Auto-create PR to memory template repository
+  - Category-based organization (tools, best-practices, patterns, architecture)
+
+- **Prompt Presets Plugin**: Pre-configured prompt templates
+  - Code Review
+  - Documentation
+  - Refactoring
+  - Testing
+  - Architecture Analysis
+  - Bug Fixing
+
+- **Git Plugin**: Integrated Git operations
+  - Auto-commit after initialization
+  - Separate commits for Claude files
+  - Remote sync functionality
+  - Gitignore management
+
+- **System Detector Plugin**: Auto-detect environment
+  - OS detection (Linux/macOS/Windows)
+  - Python environment detection
+  - Node.js environment detection
+  - Package manager detection
+
+#### Changed
+
+- **CLI Commands**: Simplified to 2 essential commands
+  - `claude-init` (default: init)
+  - `claude-init memory system-add`
+
+- **Configuration**: New plugin-based config format
+  - Cleaner structure
+  - Plugin-specific options
+  - Auto-migration from v1.x
+
+#### Removed
+
+- All parameter-based initialization modes (--quick, --interactive, --simple)
+- CLI commands: status, reconfigure, add-objective, add-assumption, etc.
+- CI/automation modes (tool is for local development only)
+
+#### Documentation
+
+- Complete design documentation in `docs/`
+  - REFACTOR_SUMMARY.md
+  - PLUGIN_ARCHITECTURE_REFACTOR.md
+  - INTERACTIVE_CLI_DESIGN.md
+  - CLI_COMMANDS_DESIGN.md
+  - I18N_DESIGN.md
+- Removed 15+ outdated v1.x documentation files
+- New README.md focused on v2.0
+
+### Migration Guide
+
+Users of v1.x should:
+1. Back up existing `claude/` directory
+2. Run `claude-init init --force` to reinitialize
+3. Configuration will be auto-migrated from old format
+
+---
+
+## [1.0.0] - 2025-01-07 (Legacy)
 
 ## [1.0.0] - 2025-10-30
 
