@@ -2,15 +2,15 @@
  * Unit tests for radio-list component
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from 'vitest';
 import { radioList, type RadioOption } from '../../../src/prompts/components/radio-list.js';
 
 // Mock inquirer
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
   default: {
-    prompt: jest.fn()
+    prompt: vi.fn()
   },
-  prompt: jest.fn()
+  prompt: vi.fn()
 }), { virtual: true });
 
 import inquirer from 'inquirer';
@@ -18,7 +18,7 @@ const mockPrompt = inquirer.prompt as jest.MockedFunction<typeof inquirer.prompt
 
 describe('radioList', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should display a radio list with basic options', async () => {

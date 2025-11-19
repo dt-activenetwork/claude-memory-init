@@ -2,21 +2,21 @@
  * Unit tests for progress indicator component
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from 'vitest';
 import type { Ora } from 'ora';
 import { ProgressIndicator } from '../../../src/prompts/components/progress.js';
 
 // Mock ora
-jest.mock('ora', () => {
+vi.mock('ora', () => {
   return {
     __esModule: true,
-    default: jest.fn(() => ({
-      start: jest.fn(),
-      stop: jest.fn(),
-      succeed: jest.fn(),
-      fail: jest.fn(),
-      warn: jest.fn(),
-      info: jest.fn(),
+    default: vi.fn(() => ({
+      start: vi.fn(),
+      stop: vi.fn(),
+      succeed: vi.fn(),
+      fail: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
       text: ''
     }))
   };
@@ -29,14 +29,14 @@ describe('ProgressIndicator', () => {
   let mockSpinner: jest.Mocked<Ora>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockSpinner = {
-      start: jest.fn(),
-      stop: jest.fn(),
-      succeed: jest.fn(),
-      fail: jest.fn(),
-      warn: jest.fn(),
-      info: jest.fn(),
+      start: vi.fn(),
+      stop: vi.fn(),
+      succeed: vi.fn(),
+      fail: vi.fn(),
+      warn: vi.fn(),
+      info: vi.fn(),
       text: ''
     } as any;
 

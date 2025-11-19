@@ -2,7 +2,7 @@
  * Tests for PluginRegistry
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginRegistry } from '../../src/plugin/registry.js';
 import type { Plugin, CoreConfig } from '../../src/plugin/types.js';
 

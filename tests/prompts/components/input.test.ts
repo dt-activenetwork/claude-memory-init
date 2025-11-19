@@ -2,15 +2,15 @@
  * Unit tests for input component
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach } from 'vitest';
 import { input, type InputValidator } from '../../../src/prompts/components/input.js';
 
 // Mock inquirer
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
   default: {
-    prompt: jest.fn()
+    prompt: vi.fn()
   },
-  prompt: jest.fn()
+  prompt: vi.fn()
 }), { virtual: true });
 
 import inquirer from 'inquirer';
@@ -18,7 +18,7 @@ const mockPrompt = inquirer.prompt as jest.MockedFunction<typeof inquirer.prompt
 
 describe('input', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should display a text input prompt', async () => {

@@ -2,15 +2,15 @@
  * Unit tests for checkbox-list component
  */
 
-import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { checkboxList, type CheckboxOption } from '../../../src/prompts/components/checkbox-list.js';
 
 // Mock inquirer
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
   default: {
-    prompt: jest.fn()
+    prompt: vi.fn()
   },
-  prompt: jest.fn()
+  prompt: vi.fn()
 }), { virtual: true });
 
 import inquirer from 'inquirer';
@@ -18,7 +18,7 @@ const mockPrompt = inquirer.prompt as jest.MockedFunction<typeof inquirer.prompt
 
 describe('checkboxList', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should display a checkbox list with basic options', async () => {

@@ -2,33 +2,33 @@
  * Tests for Plugin Context
  */
 
-import { describe, it, expect, jest } from '@jest/globals';
+import { describe, it, expect, jest } from 'vitest';
 
 // Mock dependencies that have ESM import issues
-jest.mock('../../src/utils/logger.js', () => ({
-  info: jest.fn(),
-  success: jest.fn(),
-  error: jest.fn(),
-  warning: jest.fn(),
-  step: jest.fn(),
-  blank: jest.fn()
+vi.mock('../../src/utils/logger.js', () => ({
+  info: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  step: vi.fn(),
+  blank: vi.fn()
 }));
 
-jest.mock('../../src/utils/file-ops.js', () => ({
-  ensureDir: jest.fn(),
-  copyFile: jest.fn(),
-  readFile: jest.fn(),
-  writeFile: jest.fn(),
-  fileExists: jest.fn(),
-  dirExists: jest.fn(),
-  readJsonFile: jest.fn(),
-  writeJsonFile: jest.fn()
+vi.mock('../../src/utils/file-ops.js', () => ({
+  ensureDir: vi.fn(),
+  copyFile: vi.fn(),
+  readFile: vi.fn(),
+  writeFile: vi.fn(),
+  fileExists: vi.fn(),
+  dirExists: vi.fn(),
+  readJsonFile: vi.fn(),
+  writeJsonFile: vi.fn()
 }));
 
-jest.mock('../../src/core/template-engine.js', () => ({
-  loadTemplate: jest.fn(),
-  renderTemplate: jest.fn(),
-  loadAndRenderTemplate: jest.fn()
+vi.mock('../../src/core/template-engine.js', () => ({
+  loadTemplate: vi.fn(),
+  renderTemplate: vi.fn(),
+  loadAndRenderTemplate: vi.fn()
 }));
 
 import { createPluginContext, createMockPluginContext } from '../../src/plugin/context.js';
