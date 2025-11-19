@@ -1,0 +1,14 @@
+# Topic-based Memory Index
+# TOON format - hierarchical organization of notes
+
+topics:
+  # Example topics (remove these and add your own):
+  # architecture:
+  #   patterns[1]: sem-001
+  #   design[1]: sem-003
+  # backend:
+  #   api[1]: sem-002
+  #   database[0]:
+
+updated: "{{CURRENT_DATE}}"
+version: "1.0.0"

@@ -1,0 +1,11 @@
+# Tag-based Memory Index
+# TOON format - maps tags to note IDs
+
+tags:
+  # Example tags (remove these and add your own):
+  # architecture[2]: sem-001,sem-003
+  # api[1]: sem-002
+  # testing[1]: proc-001
+
+updated: "{{CURRENT_DATE}}"
+version: "1.0.0"

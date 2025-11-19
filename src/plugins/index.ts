@@ -7,6 +7,7 @@
 import { systemDetectorPlugin } from './system-detector/index.js';
 import { gitPlugin } from './git/index.js';
 import { promptPresetsPlugin } from './prompt-presets/index.js';
+import { memorySystemPlugin } from './memory-system/index.js';
 import type { Plugin } from '../plugin/types.js';
 
 /**
@@ -18,8 +19,7 @@ export const builtinPlugins: Plugin[] = [
   systemDetectorPlugin,
   gitPlugin,
   promptPresetsPlugin,
-  // TODO: Add memory-system plugin (needs gradual extraction from legacy)
-  // memorySystemPlugin,
+  memorySystemPlugin,
 ];
 
 /**
