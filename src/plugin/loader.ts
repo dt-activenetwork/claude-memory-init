@@ -83,6 +83,21 @@ export class PluginLoader {
   }
 
   /**
+   * Set loaded plugins directly (for manual plugin management)
+   *
+   * This is useful when you want to bypass the normal load() flow
+   * and manage plugin loading manually.
+   *
+   * @param plugins Array of plugins to set as loaded
+   */
+  setLoadedPlugins(plugins: Plugin[]): void {
+    this.loadedPlugins.clear();
+    for (const plugin of plugins) {
+      this.loadedPlugins.set(plugin.meta.name, plugin);
+    }
+  }
+
+  /**
    * Sort plugins by dependencies using topological sort (Kahn's algorithm)
    *
    * @param plugins Plugins to sort
