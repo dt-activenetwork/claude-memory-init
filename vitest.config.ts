@@ -9,8 +9,8 @@ export default defineConfig({
     environment: 'node',
 
     // Test file patterns
-    include: ['tests/**/*.test.ts', 'test/**/*.test.ts'],
-    exclude: ['node_modules', 'dist', 'test-output'],
+    include: ['tests/**/*.test.ts'],
+    exclude: ['node_modules', 'dist'],
 
     // Coverage configuration
     coverage: {

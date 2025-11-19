@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { PluginRegistry } from '../../src/plugin/registry.js';
-import type { Plugin, CoreConfig } from '../../src/plugin/types.js';
+import { PluginRegistry } from '../../../src/plugin/registry.js';
+import type { Plugin, CoreConfig } from '../../../src/plugin/types.js';
 
 describe('PluginRegistry', () => {
   let registry: PluginRegistry;

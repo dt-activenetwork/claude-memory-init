@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { renderTemplate, renderObjectives, renderList } from '../../src/core/template-engine.js';
-import type { FullConfig, Objective } from '../../src/types/config.js';
+import { renderTemplate, renderObjectives, renderList } from '../../../src/core/template-engine.js';
+import type { FullConfig, Objective } from '../../../src/types/config.js';
 
 describe('template-engine', () => {
   const mockConfig: FullConfig = {

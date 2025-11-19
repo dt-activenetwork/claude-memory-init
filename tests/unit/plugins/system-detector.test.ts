@@ -3,9 +3,9 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { systemDetectorPlugin } from '../../src/plugins/system-detector/index.js';
-import type { ConfigurationContext, PluginContext } from '../../src/plugin/types.js';
-import { createMockPluginContext } from '../../src/plugin/context.js';
+import { systemDetectorPlugin } from '../../../src/plugins/system-detector/index.js';
+import type { ConfigurationContext, PluginContext } from '../../../src/plugin/types.js';
+import { createMockPluginContext } from '../../../src/plugin/context.js';
 
 describe('System Detector Plugin', () => {
   describe('Plugin Metadata', () => {

@@ -31,8 +31,8 @@ vi.mock('../../src/core/template-engine.js', () => ({
   loadAndRenderTemplate: vi.fn()
 }));
 
-import { createPluginContext, createMockPluginContext } from '../../src/plugin/context.js';
-import type { SharedConfig } from '../../src/plugin/types.js';
+import { createPluginContext, createMockPluginContext } from '../../../src/plugin/context.js';
+import type { SharedConfig } from '../../../src/plugin/types.js';
 
 describe('createPluginContext', () => {
   const createTestConfig = (): SharedConfig => ({

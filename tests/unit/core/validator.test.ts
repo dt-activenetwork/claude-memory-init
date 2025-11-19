@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { validateConfig, validateRequiredFields, validateTemplateRendering, getUnreplacedVariables } from '../../src/core/validator.js';
-import type { FullConfig } from '../../src/types/config.js';
+import { validateConfig, validateRequiredFields, validateTemplateRendering, getUnreplacedVariables } from '../../../src/core/validator.js';
+import type { FullConfig } from '../../../src/types/config.js';
 
 describe('validator', () => {
   const validConfig: FullConfig = {

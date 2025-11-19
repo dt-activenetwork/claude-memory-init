@@ -5,9 +5,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as path from 'path';
 import * as fs from 'fs/promises';
-import { InteractiveInitializer } from '../../src/core/interactive-initializer.js';
-import { PluginRegistry } from '../../src/plugin/registry.js';
-import type { Plugin, PluginConfig, ConfigurationContext } from '../../src/plugin/types.js';
+import { InteractiveInitializer } from '../../../src/core/interactive-initializer.js';
+import { PluginRegistry } from '../../../src/plugin/registry.js';
+import type { Plugin, PluginConfig, ConfigurationContext } from '../../../src/plugin/types.js';
 
 // Mock chalk
 vi.mock('chalk', () => {
@@ -54,7 +54,7 @@ vi.mock('../../src/utils/logger.js', () => ({
 global.console.clear = vi.fn();
 global.console.log = vi.fn();
 
-import * as ui from '../../src/prompts/components/index.js';
+import * as ui from '../../../src/prompts/components/index.js';
 
 describe('InteractiveInitializer', () => {
   let initializer: InteractiveInitializer;

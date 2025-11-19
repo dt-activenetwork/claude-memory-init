@@ -23,7 +23,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "postinstall": "node scripts/postinstall.ts",
+    "postinstall": "node scripts/dev/postinstall.ts",
     "submodule:init": "git submodule update --init --recursive",
     "submodule:update": "git submodule update --remote --merge",
     "prepublishOnly": "pnpm run clean && pnpm run build && pnpm test"

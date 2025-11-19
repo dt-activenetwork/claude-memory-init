@@ -31,10 +31,10 @@ vi.mock('../../src/core/template-engine.js', () => ({
   loadAndRenderTemplate: vi.fn()
 }));
 
-import { PluginRegistry } from '../../src/plugin/registry.js';
-import { PluginLoader } from '../../src/plugin/loader.js';
-import { createMockPluginContext } from '../../src/plugin/context.js';
-import type { Plugin, PluginContext, CoreConfig } from '../../src/plugin/types.js';
+import { PluginRegistry } from '../../../src/plugin/registry.js';
+import { PluginLoader } from '../../../src/plugin/loader.js';
+import { createMockPluginContext } from '../../../src/plugin/context.js';
+import type { Plugin, PluginContext, CoreConfig } from '../../../src/plugin/types.js';
 
 describe('PluginLoader', () => {
   let registry: PluginRegistry;
