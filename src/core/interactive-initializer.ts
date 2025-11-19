@@ -38,6 +38,7 @@ import {
   AGENT_MD_TEMPLATE,
   AGENT_SUBDIRS,
   MEMORY_SUBDIRS,
+  TASK_SUBDIRS,
 } from '../constants.js';
 
 /**
@@ -446,16 +447,26 @@ export class InteractiveInitializer {
       // Step 1: Create base directory structure
       const agentDir = path.join(targetDir, baseDir);
       await ensureDir(agentDir);
+
+      // Core directories
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.SYSTEM));
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.GIT));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.INDEX));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.SEMANTIC));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.EPISODIC));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.SYSTEM));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.SCRIPTS));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.SKILLS));
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.PRESETS));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TEMP));
-      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.CACHE));
+
+      // Memory directories
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.KNOWLEDGE));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.HISTORY));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.INDEX));
+
+      // Task directories
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.WORKFLOWS));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.OUTPUT));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.TMP));
+
       progress.nextStep();
 
       // Step 2: Load plugins and create context

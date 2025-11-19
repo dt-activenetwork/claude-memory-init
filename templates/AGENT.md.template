@@ -14,6 +14,8 @@ This project uses structured prompt engineering in `.agent/`.
 
 {{MEMORY_SECTION}}
 
+{{TASK_SECTION}}
+
 {{PRESETS_SECTION}}
 
 ---

@@ -20,10 +20,10 @@ import { getCurrentDate } from '../../utils/date-utils.js';
  */
 export interface MemorySystemOptions {
   /** Enabled memory types */
-  memory_types: string[]; // ['semantic', 'episodic', 'procedural', 'system']
+  memory_types: string[]; // ['knowledge', 'history']
 
-  /** Copy system tools from mem repository */
-  include_system_tools: boolean;
+  /** Include system knowledge layer */
+  include_system: boolean;
 }
 
 /**
@@ -49,41 +49,29 @@ export const memorySystemPlugin: Plugin = {
         'Which memory types do you want to enable?',
         [
           {
-            name: 'Semantic',
-            value: 'semantic',
+            name: 'Knowledge',
+            value: 'knowledge',
             description: 'Stable architectural knowledge',
             checked: true,
           },
           {
-            name: 'Episodic',
-            value: 'episodic',
-            description: 'Task history and sessions',
+            name: 'History',
+            value: 'history',
+            description: 'Task history records',
             checked: true,
-          },
-          {
-            name: 'Procedural',
-            value: 'procedural',
-            description: 'Reusable workflows',
-            checked: true,
-          },
-          {
-            name: 'System',
-            value: 'system',
-            description: 'System-level knowledge',
-            checked: false,
           },
         ]
       );
 
-      // Ask about system tools (for now, keep in memory/system/)
-      const includeSystemTools = await ui.confirm(
-        'Include system tools (mermaid, markdown, code-reference)?',
-        true
+      // Ask about system knowledge layer
+      const includeSystem = await ui.confirm(
+        'Include system knowledge layer (universal tools, standards)?',
+        false
       );
 
       const options: MemorySystemOptions = {
         memory_types: memoryTypes,
-        include_system_tools: includeSystemTools,
+        include_system: includeSystem,
       };
 
       return {
@@ -98,8 +86,8 @@ export const memorySystemPlugin: Plugin = {
 
       lines.push(`Memory types: ${options.memory_types.join(', ')}`);
 
-      if (options.include_system_tools) {
-        lines.push('System tools: included');
+      if (options.include_system) {
+        lines.push('System knowledge: included');
       }
 
       return lines;
@@ -186,19 +174,17 @@ See \`.agent/memory/workflow.md\` for complete workflow.`;
         });
       }
 
-      // 5. System tools (if included) - keep in memory/system/tools/ for now
-      if (options.include_system_tools && options.memory_types.includes('system')) {
-        // TODO: Copy from mem repository or embed
-        // For now, create placeholder
-        const toolsReadme = `# System Tools
+      // 5. System knowledge (if included)
+      if (options.include_system) {
+        const systemReadme = `# System Knowledge
 
-Universal tool knowledge (mermaid, markdown, code-reference).
+Universal, project-agnostic knowledge (tools, standards).
 
-See individual tool files for usage guidelines.
+To be managed separately (future: Skills system).
 `;
         outputs.push({
-          path: 'memory/system/tools/README.md',
-          content: toolsReadme,
+          path: 'memory/system/README.md',
+          content: systemReadme,
           format: 'markdown',
         });
       }
@@ -215,41 +201,31 @@ See individual tool files for usage guidelines.
  */
 function generateMemoryTypeReadme(type: string): string {
   const descriptions: Record<string, { purpose: string; format: string; example: string }> = {
-    semantic: {
-      purpose: 'Stable architectural knowledge and facts',
-      format: 'sem-NNN-descriptive-name.md',
-      example: 'sem-001-authentication-architecture.md',
+    knowledge: {
+      purpose: 'Stable architectural knowledge and design facts',
+      format: 'know-NNN-descriptive-name.md',
+      example: 'know-001-authentication-architecture.md',
     },
-    episodic: {
+    history: {
       purpose: 'Task history and session records',
-      format: 'ep-NNN-descriptive-name.md',
-      example: 'ep-001-initial-analysis-session.md',
-    },
-    procedural: {
-      purpose: 'Reusable workflows and procedures',
-      format: 'proc-descriptive-name.md',
-      example: 'proc-code-review-workflow.md',
-    },
-    system: {
-      purpose: 'System-level shared knowledge',
-      format: 'sys-descriptive-name.md',
-      example: 'sys-mermaid-guidelines.md',
+      format: 'hist-NNN-descriptive-name.md',
+      example: 'hist-001-initial-analysis-session.md',
     },
   };
 
   const desc = descriptions[type];
   if (!desc) {
-    return `# ${type.charAt(0).toUpperCase() + type.slice(1)} Memory\n\nMemory type: ${type}\n`;
+    return `# ${type.charAt(0).toUpperCase() + type.slice(1)}\n\nMemory type: ${type}\n`;
   }
 
-  return `# ${type.charAt(0).toUpperCase() + type.slice(1)} Memory
+  return `# ${type.charAt(0).toUpperCase() + type.slice(1)}
 
 Purpose: ${desc.purpose}
 
 File format: ${desc.format}
 Example: ${desc.example}
 
-Create notes as discoveries are made during work.
+Create notes as discoveries are made.
 Update indexes (tags.toon, topics.toon) after creating notes.
 `;
 }

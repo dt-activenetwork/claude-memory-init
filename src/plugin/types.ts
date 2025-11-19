@@ -394,6 +394,24 @@ export interface PluginOutputs {
 }
 
 /**
+ * Plugin gitignore contribution
+ */
+export interface PluginGitignoreContribution {
+  /**
+   * Get gitignore patterns for this plugin
+   *
+   * @param config Plugin configuration
+   * @returns Array of patterns to ignore
+   */
+  getPatterns: (config: PluginConfig) => string[];
+
+  /**
+   * Optional comment to add above patterns
+   */
+  comment?: string;
+}
+
+/**
  * Plugin definition
  *
  * Complete interface for defining a plugin
@@ -416,4 +434,7 @@ export interface Plugin {
 
   /** File outputs to .agent/ directory (optional) */
   outputs?: PluginOutputs;
+
+  /** Gitignore patterns contribution (optional) */
+  gitignore?: PluginGitignoreContribution;
 }

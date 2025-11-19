@@ -43,28 +43,36 @@ export const AGENT_SUBDIRS = {
   SYSTEM: 'system',
   GIT: 'git',
   MEMORY: 'memory',
+  TASKS: 'tasks',
   PRESETS: 'presets',
-  TEMP: 'temp',
-  CACHE: '.cache',
+  SCRIPTS: 'scripts',
+  SKILLS: 'skills',
 } as const;
 
 /**
- * Memory subdirectories
+ * Memory subdirectories (knowledge management)
  */
 export const MEMORY_SUBDIRS = {
-  SEMANTIC: 'semantic',
-  EPISODIC: 'episodic',
-  PROCEDURAL: 'procedural',
-  SYSTEM: 'system',
+  KNOWLEDGE: 'knowledge',  // Renamed from semantic
+  HISTORY: 'history',      // Renamed from episodic
   INDEX: 'index',
+} as const;
+
+/**
+ * Task subdirectories (task management)
+ */
+export const TASK_SUBDIRS = {
+  WORKFLOWS: 'workflows',  // From procedural
+  OUTPUT: 'output',        // Task outputs
+  TMP: 'tmp',              // Task temporary files (not temp!)
 } as const;
 
 /**
  * Default gitignore patterns for .agent/ directory
  */
 export const DEFAULT_GITIGNORE_PATTERNS = [
-  `${DEFAULT_AGENT_DIR}/${AGENT_SUBDIRS.TEMP}/`,
-  `${DEFAULT_AGENT_DIR}/${AGENT_SUBDIRS.CACHE}/`,
+  `${DEFAULT_AGENT_DIR}/${AGENT_SUBDIRS.TASKS}/${TASK_SUBDIRS.TMP}/`,
+  `${DEFAULT_AGENT_DIR}/${AGENT_SUBDIRS.SCRIPTS}/*.log`,
 ] as const;
 
 /**
