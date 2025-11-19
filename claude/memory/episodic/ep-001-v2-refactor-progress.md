@@ -204,7 +204,68 @@ tags: [refactor, v2.0, plugin-system, progress]
   - 暂时跳过 InteractiveInitializer 的集成测试
   - 功能代码本身没有问题
 
-**下一步**: Phase 4.1 - System Detector 插件
+**下一步**: Phase 4.2 - Prompt Presets 插件
+
+### Phase 4.1: System Detector 插件 ✅ (完成)
+
+**实现日期**: 2025-01-19
+
+**实现文件**:
+- `src/plugins/system-detector/index.ts` (138 行) - 插件主文件
+- `src/plugins/system-detector/detectors/os.ts` (99 行) - OS 检测
+- `src/plugins/system-detector/detectors/python.ts` (82 行) - Python 检测
+- `src/plugins/system-detector/detectors/node.ts` (73 行) - Node.js 检测
+- `tests/plugins/system-detector.test.ts` (216 行) - 13 个单元测试
+
+**核心功能**:
+1. ✅ 静默配置 (needsConfiguration: false)
+2. ✅ OS 检测 (Linux/macOS/Windows/MSYS2)
+3. ✅ Python 检测 (版本 + 包管理器)
+4. ✅ Node.js 检测 (版本 + 包管理器)
+5. ✅ 智能摘要生成
+6. ✅ 共享上下文存储
+
+**质量指标**:
+- TypeScript 编译: ✅ 通过
+- 测试: 13/13 通过 (100%)
+- 真实运行: ✅ 验证通过
+- 代码行数: 392 行 (实现) + 216 行 (测试)
+
+**真实检测结果**:
+- OS: EndeavourOS (Linux)
+- Python: 3.13.7 (pip)
+- Node.js: 20.19.5 (pnpm)
+- 摘要: "Auto-detected: EndeavourOS, Python 3.13.7, Node.js 20.19.5"
+
+### 工具链迁移 ✅ (完成)
+
+**实现日期**: 2025-01-19
+
+**迁移内容**:
+- 构建: TypeScript Compiler → Vite
+- 测试: Jest → Vitest
+- 配置: jest.config.cjs → vite.config.ts + vitest.config.ts
+
+**性能提升**:
+- 构建速度: 2-3s → 465ms (5-6x)
+- 测试执行: 阻塞 → 260ms (120 tests)
+- ESM 支持: ❌ → ✅ (原生支持)
+
+**测试成功率**:
+- 之前: 87/120 (72%) - chalk ESM mocking 问题
+- 现在: 133/133 (100%) - 完全解决
+
+**依赖变更**:
+```diff
++ vite@7.2.2
++ vitest@4.0.10
++ @vitest/coverage-v8@4.0.10
++ tsx@4.20.6
+- jest@30.2.0
+- @jest/globals@30.2.0
+- @types/jest@30.0.0
+- ts-jest@29.4.5
+```
 
 ## 技术细节
 
@@ -261,24 +322,25 @@ UI 组件: 48 测试，100% 通过
 ## 待办事项
 
 ### 立即可开始
-- [ ] Phase 4.1: System Detector 插件（依赖 Phase 3，已完成）
+- [ ] Phase 4.2: Prompt Presets 插件（依赖 Phase 1-3，已完成）
 
-### 后续阶段
-- [ ] Phase 4.2: Prompt Presets 插件
+### 后续阶段（按优先级）
 - [ ] Phase 4.3: Memory System 插件
 - [ ] Phase 4.4: Git 插件
 - [ ] Phase 5: CLI 重构（依赖所有插件）
-- [ ] Phase 6: 配置迁移（依赖 Phase 5）
-- [ ] Phase 7: 国际化（可并行）
-- [ ] Phase 8: 测试
+- [ ] Phase 6: 配置迁移工具
+- [ ] Phase 7: 国际化实现（可并行）
+- [ ] Phase 8: 集成测试
 - [ ] Phase 9: 文档更新
 
 ### 已完成阶段
 - ✅ Phase 1: 插件系统核心框架
 - ✅ Phase 2: UI 组件库
 - ✅ Phase 3: 交互式初始化器
+- ✅ Phase 4.1: System Detector 插件
 - ✅ Extra 1: 插件 Prompt 规范
 - ✅ Extra 2: mem 改造方案
+- ✅ 工具链迁移: Jest+TSC → Vite+Vitest
 
 ## 关键学习
 
@@ -303,16 +365,17 @@ UI 组件: 48 测试，100% 通过
 
 恢复工作时：
 1. 查看本记忆文件了解当前进度
-2. 启动 Phase 4.1: System Detector 插件（prompt 在 `docs/IMPLEMENTATION_TASKS.md`）
+2. 启动 Phase 4.2: Prompt Presets 插件（prompt 在 `docs/IMPLEMENTATION_TASKS.md`）
 3. 继续推进 v2.0 重构
 
-**注意事项**:
-- Phase 3 已完成，但测试因 chalk ESM mocking 问题暂时跳过
-- 功能代码本身完全正常，可以继续下一阶段
-- 待 Jest ESM 支持改进后再修复测试
+**当前状态**:
+- ✅ 工具链已迁移到 Vite + Vitest
+- ✅ 所有 Phase 1-4.1 测试通过 (133/133)
+- ✅ Phase 4.1 真实运行验证通过
+- 🚀 准备开始 Phase 4.2
 
 ---
 
 **记录者**: Claude
 **最后更新**: 2025-01-19
-**下次继续**: Phase 4.1 - System Detector 插件
+**下次继续**: Phase 4.2 - Prompt Presets 插件
