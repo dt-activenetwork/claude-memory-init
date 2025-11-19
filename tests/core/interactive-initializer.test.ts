@@ -265,7 +265,7 @@ describe('InteractiveInitializer', () => {
       await initializer.run(testDir);
 
       // Verify that marker file was not created
-      const markerPath = path.join(testDir, 'claude', '.claude-memory-init');
+      const markerPath = path.join(testDir, '.agent', '.claude-memory-init');
       const markerExists = await fs
         .access(markerPath)
         .then(() => true)
@@ -399,13 +399,15 @@ describe('InteractiveInitializer', () => {
       await initializer.run(testDir);
 
       // Verify directories were created
-      const claudeDir = path.join(testDir, 'claude');
-      const promptsDir = path.join(claudeDir, 'prompts');
-      const memoryDir = path.join(claudeDir, 'memory');
-      const tempDir = path.join(claudeDir, 'temp');
+      const agentDir = path.join(testDir, '.agent');
+      const systemDir = path.join(agentDir, 'system');
+      const gitDir = path.join(agentDir, 'git');
+      const memoryDir = path.join(agentDir, 'memory');
+      const tempDir = path.join(agentDir, 'temp');
 
-      expect(await fs.access(claudeDir).then(() => true).catch(() => false)).toBe(true);
-      expect(await fs.access(promptsDir).then(() => true).catch(() => false)).toBe(true);
+      expect(await fs.access(agentDir).then(() => true).catch(() => false)).toBe(true);
+      expect(await fs.access(systemDir).then(() => true).catch(() => false)).toBe(true);
+      expect(await fs.access(gitDir).then(() => true).catch(() => false)).toBe(true);
       expect(await fs.access(memoryDir).then(() => true).catch(() => false)).toBe(true);
       expect(await fs.access(tempDir).then(() => true).catch(() => false)).toBe(true);
     });
@@ -424,7 +426,7 @@ describe('InteractiveInitializer', () => {
       await initializer.run(testDir);
 
       // Verify marker file exists
-      const markerPath = path.join(testDir, 'claude', '.claude-memory-init');
+      const markerPath = path.join(testDir, '.agent', '.claude-memory-init');
       const markerExists = await fs.access(markerPath).then(() => true).catch(() => false);
 
       expect(markerExists).toBe(true);
