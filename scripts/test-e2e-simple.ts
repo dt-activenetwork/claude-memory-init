@@ -110,7 +110,7 @@ async function test() {
     ]);
 
     const agentMdContent = await assembleAgentMd(
-      'templates/AGENT.md.template',
+      'templates/agent/AGENT.md.template',
       {
         PROJECT_NAME: 'E2E Test Project',
         VERSION: '2.0.0',

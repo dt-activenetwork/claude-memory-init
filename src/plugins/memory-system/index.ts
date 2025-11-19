@@ -134,7 +134,7 @@ See \`.agent/memory/workflow.md\` for complete workflow.`;
 
       // 1. workflow.md
       const workflowTemplate = await readFile(
-        path.join(process.cwd(), 'templates/memory-workflow.md')
+        path.join(process.cwd(), 'templates/memory/memory-workflow.md')
       );
       outputs.push({
         path: 'memory/workflow.md',
@@ -144,7 +144,7 @@ See \`.agent/memory/workflow.md\` for complete workflow.`;
 
       // 2. tags.toon (empty template)
       const tagsTemplate = await readFile(
-        path.join(process.cwd(), 'templates/tags.toon.template')
+        path.join(process.cwd(), 'templates/memory/tags.toon.template')
       );
       const tagsContent = tagsTemplate.replace('{{CURRENT_DATE}}', new Date().toISOString());
       outputs.push({
@@ -155,7 +155,7 @@ See \`.agent/memory/workflow.md\` for complete workflow.`;
 
       // 3. topics.toon (empty template)
       const topicsTemplate = await readFile(
-        path.join(process.cwd(), 'templates/topics.toon.template')
+        path.join(process.cwd(), 'templates/memory/topics.toon.template')
       );
       const topicsContent = topicsTemplate.replace('{{CURRENT_DATE}}', new Date().toISOString());
       outputs.push({

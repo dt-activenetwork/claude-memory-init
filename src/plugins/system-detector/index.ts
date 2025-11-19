@@ -123,7 +123,7 @@ export const systemDetectorPlugin: Plugin = {
       const scriptFiles = ['detect-system.js', 'detect-os.js'];
 
       for (const scriptFile of scriptFiles) {
-        const scriptPath = path.join(process.cwd(), 'templates/scripts', scriptFile);
+        const scriptPath = path.join(process.cwd(), 'templates/system-detector/scripts', scriptFile);
         try {
           const content = await readFile(scriptPath);
           outputs.push({
@@ -138,7 +138,7 @@ export const systemDetectorPlugin: Plugin = {
 
       // 2. Optionally create Skill
       if (options.include_as_skill) {
-        const skillMdPath = path.join(process.cwd(), 'templates/skills/system-detector/SKILL.md');
+        const skillMdPath = path.join(process.cwd(), 'templates/system-detector/skills/system-detector/SKILL.md');
         try {
           const skillContent = await readFile(skillMdPath);
           outputs.push({

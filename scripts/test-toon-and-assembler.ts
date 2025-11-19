@@ -74,7 +74,7 @@ async function test() {
   ]);
 
   const assembledContent = await assembleAgentMd(
-    'templates/AGENT.md.template',
+    'templates/agent/AGENT.md.template',
     {
       PROJECT_NAME: 'Test Project',
       VERSION: '2.0.0',

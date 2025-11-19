@@ -579,7 +579,7 @@ export class InteractiveInitializer {
     };
 
     // Template path
-    const templatePath = path.join(process.cwd(), 'templates', AGENT_MD_TEMPLATE);
+    const templatePath = path.join(process.cwd(), 'templates/agent', AGENT_MD_TEMPLATE);
 
     // Assemble AGENT.md
     const content = await assembleAgentMd(templatePath, variables, plugins, configs, context);

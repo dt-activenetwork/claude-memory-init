@@ -113,7 +113,7 @@ async function test() {
     // Assemble AGENT.md
     console.log('Assembling AGENT.md with all 4 plugins...');
     const agentMd = await assembleAgentMd(
-      'templates/AGENT.md.template',
+      'templates/agent/AGENT.md.template',
       {
         PROJECT_NAME: 'All Plugins Test',
         VERSION: '2.0.0',

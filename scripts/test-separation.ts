@@ -98,7 +98,7 @@ async function test() {
 
     // Assemble AGENT.md
     const agentMd = await assembleAgentMd(
-      'templates/AGENT.md.template',
+      'templates/agent/AGENT.md.template',
       {
         PROJECT_NAME: 'Separation Test',
         VERSION: '2.0.0',
