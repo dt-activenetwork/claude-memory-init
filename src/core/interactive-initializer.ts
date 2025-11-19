@@ -17,6 +17,7 @@ import {
   type ConfigurationContext,
   type UIComponents,
   type Logger,
+  type FileOutput,
 } from '../plugin/types.js';
 import * as ui from '../prompts/components/index.js';
 import { ProgressIndicator } from '../prompts/components/progress.js';
@@ -28,7 +29,16 @@ import {
   removeMarker,
   type MarkerInfo,
 } from './marker.js';
-import { ensureDir } from '../utils/file-ops.js';
+import { ensureDir, writeFile } from '../utils/file-ops.js';
+import { assembleAgentMd, type AgentTemplateVariables } from './agent-assembler.js';
+import { getCurrentDate } from '../utils/date-utils.js';
+import {
+  DEFAULT_AGENT_DIR,
+  AGENT_MD_FILENAME,
+  AGENT_MD_TEMPLATE,
+  AGENT_SUBDIRS,
+  MEMORY_SUBDIRS,
+} from '../constants.js';
 
 /**
  * Project information collected during initialization
@@ -88,7 +98,7 @@ export class InteractiveInitializer {
    * @param options Initialization options
    */
   async run(targetDir: string, options: InitializationOptions = {}): Promise<void> {
-    const baseDir = options.baseDir || 'claude';
+    const baseDir = options.baseDir || DEFAULT_AGENT_DIR;
 
     try {
       console.clear();
@@ -425,7 +435,8 @@ export class InteractiveInitializer {
     const progress = new ProgressIndicator([
       'Creating directory structure',
       'Initializing plugins',
-      'Executing plugin hooks',
+      'Writing plugin outputs',
+      'Generating AGENT.md',
       'Finalizing setup',
     ]);
 
@@ -433,14 +444,21 @@ export class InteractiveInitializer {
 
     try {
       // Step 1: Create base directory structure
-      const claudeDir = path.join(targetDir, baseDir);
-      await ensureDir(claudeDir);
-      await ensureDir(path.join(claudeDir, 'prompts'));
-      await ensureDir(path.join(claudeDir, 'memory'));
-      await ensureDir(path.join(claudeDir, 'temp'));
+      const agentDir = path.join(targetDir, baseDir);
+      await ensureDir(agentDir);
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.SYSTEM));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.GIT));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.INDEX));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.SEMANTIC));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.EPISODIC));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.MEMORY, MEMORY_SUBDIRS.SYSTEM));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.PRESETS));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TEMP));
+      await ensureDir(path.join(agentDir, AGENT_SUBDIRS.CACHE));
       progress.nextStep();
 
-      // Step 2: Load plugins into loader
+      // Step 2: Load plugins and create context
       const plugins = selectedPlugins
         .map((name) => this.pluginRegistry.get(name))
         .filter((p): p is Plugin => p !== undefined);
@@ -463,17 +481,30 @@ export class InteractiveInitializer {
         plugins: pluginConfigs,
       };
 
-      const context = createPluginContext(targetDir, claudeDir, sharedConfig);
-      progress.nextStep();
+      const context = createPluginContext(targetDir, agentDir, sharedConfig);
 
-      // Step 3: Execute plugin lifecycle hooks
+      // Execute plugin lifecycle hooks
       await this.pluginLoader.executeHook('beforeInit', context);
       await this.pluginLoader.executeHook('execute', context);
       await this.pluginLoader.executeHook('afterInit', context);
       progress.nextStep();
 
-      // Step 4: Finalize
-      // (Cleanup, final checks, etc.)
+      // Step 3: Write plugin outputs to .agent/ directory
+      await this.writePluginOutputs(plugins, pluginConfigs, context, agentDir, baseDir);
+      progress.nextStep();
+
+      // Step 4: Generate and write AGENT.md
+      await this.generateAgentMd(
+        targetDir,
+        baseDir,
+        projectInfo,
+        plugins,
+        pluginConfigs,
+        context
+      );
+      progress.nextStep();
+
+      // Step 5: Finalize
       progress.nextStep();
 
       progress.succeed('✨ Initialization complete!');
@@ -481,6 +512,72 @@ export class InteractiveInitializer {
       progress.fail('❌ Initialization failed');
       throw error;
     }
+  }
+
+  /**
+   * Write plugin outputs to .agent/ directory
+   */
+  private async writePluginOutputs(
+    plugins: Plugin[],
+    configs: Map<string, PluginConfig>,
+    context: PluginContext,
+    agentDir: string,
+    baseDir: string
+  ): Promise<void> {
+    for (const plugin of plugins) {
+      if (plugin.outputs) {
+        const config = configs.get(plugin.meta.name);
+        if (!config) continue;
+
+        const outputs = await plugin.outputs.generate(config, context);
+
+        for (const output of outputs) {
+          const fullPath = path.join(agentDir, output.path);
+          const dir = path.dirname(fullPath);
+
+          // Ensure directory exists
+          await ensureDir(dir);
+
+          // Write file
+          await writeFile(fullPath, output.content);
+
+          context.logger.info(`Created: ${baseDir}/${output.path}`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Generate and write AGENT.md
+   */
+  private async generateAgentMd(
+    targetDir: string,
+    baseDir: string,
+    projectInfo: ProjectInfo,
+    plugins: Plugin[],
+    configs: Map<string, PluginConfig>,
+    context: PluginContext
+  ): Promise<void> {
+    // Template variables
+    const variables: AgentTemplateVariables = {
+      PROJECT_NAME: projectInfo.name,
+      VERSION: '2.0.0',
+      LAST_UPDATED: getCurrentDate(),
+      THINK_LANGUAGE: 'English', // TODO: Get from config
+      USER_LANGUAGE: 'English', // TODO: Get from config
+    };
+
+    // Template path
+    const templatePath = path.join(process.cwd(), 'templates', AGENT_MD_TEMPLATE);
+
+    // Assemble AGENT.md
+    const content = await assembleAgentMd(templatePath, variables, plugins, configs, context);
+
+    // Write to root directory
+    const agentMdPath = path.join(targetDir, AGENT_MD_FILENAME);
+    await writeFile(agentMdPath, content);
+
+    context.logger.success(`Generated: ${AGENT_MD_FILENAME}`);
   }
 
   /**
@@ -493,12 +590,12 @@ export class InteractiveInitializer {
     console.log();
 
     console.log(chalk.bold('Files created:'));
+    console.log(chalk.gray(`  ✓ ${AGENT_MD_FILENAME}`));
     console.log(chalk.gray(`  ✓ ${baseDir}/`));
-    console.log(chalk.gray(`  ✓ CLAUDE.md (symlink)`));
     console.log();
 
     console.log(chalk.bold('Next steps:'));
-    console.log(chalk.gray('  • Review CLAUDE.md and customize as needed'));
+    console.log(chalk.gray(`  • Review ${AGENT_MD_FILENAME} and customize as needed`));
     console.log(chalk.gray('  • Start chatting with Claude in this project'));
     console.log(chalk.gray(`  • Run 'claude-init --help' for more commands`));
     console.log();
