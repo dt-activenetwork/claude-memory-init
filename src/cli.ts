@@ -15,6 +15,9 @@ import { promptProjectInfoSimple, promptLanguageConfigSimple, promptGitConfigSim
 import { ensureDir, fileExists } from './utils/file-ops.js';
 import * as logger from './utils/logger.js';
 import type { FullConfig } from './types/config.js';
+import { InteractiveInitializer } from './core/interactive-initializer.js';
+import { PluginRegistry } from './plugin/registry.js';
+import { builtinPlugins } from './plugins/index.js';
 
 const program = new Command();
 
@@ -544,18 +547,8 @@ export function setupCLI(): Command {
       } else if (options.quick) {
         await initQuick(targetDir, force);
       } else {
-        // Default: look for config.yaml in target/claude/
-        const defaultConfigPath = path.join(targetDir, 'claude', 'config.yaml');
-        if (await fileExists(defaultConfigPath)) {
-          await initFromConfig(defaultConfigPath, targetDir, force);
-        } else {
-          logger.error('No initialization mode specified. Use one of:');
-          logger.info('  --config <path>   Use specific config file');
-          logger.info('  --interactive     Full interactive mode');
-          logger.info('  --simple          Simple mode (recommended)');
-          logger.info('  --quick           Quick automated mode');
-          process.exit(1);
-        }
+        // Default: Use new plugin-based interactive mode (v2.0)
+        await initPluginBased(targetDir, force);
       }
     });
 
@@ -930,4 +923,28 @@ export function setupCLI(): Command {
     });
 
   return program;
+}
+
+/**
+ * Initialize using plugin-based interactive mode (v2.0)
+ */
+async function initPluginBased(targetDir: string, force: boolean = false): Promise<void> {
+  try {
+    // Create plugin registry
+    const registry = new PluginRegistry();
+
+    // Register all built-in plugins
+    for (const plugin of builtinPlugins) {
+      registry.register(plugin);
+    }
+
+    // Create and run initializer
+    const initializer = new InteractiveInitializer(registry);
+    await initializer.run(targetDir, { force });
+
+  } catch (error) {
+    logger.error('Initialization failed');
+    logger.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }

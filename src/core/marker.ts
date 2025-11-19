@@ -2,13 +2,14 @@
  * Marker file management for detecting initialized projects
  */
 import * as path from 'path';
-import { fileExists, readFile, writeFile, readJsonFile, writeJsonFile } from '../utils/file-ops.js';
+import { fileExists, readJsonFile, writeJsonFile } from '../utils/file-ops.js';
 import { getCurrentDate } from '../utils/date-utils.js';
+import { DEFAULT_AGENT_DIR, MARKER_FILENAME } from '../constants.js';
 
 /**
- * Marker file name - hidden file in claude directory
+ * Marker file name - hidden file in agent directory
  */
-const MARKER_FILE = '.claude-memory-init';
+const MARKER_FILE = MARKER_FILENAME;
 
 /**
  * Marker file structure
@@ -24,7 +25,7 @@ export interface MarkerInfo {
 /**
  * Check if a project has been initialized
  */
-export async function isProjectInitialized(targetDir: string, baseDir: string = 'claude'): Promise<boolean> {
+export async function isProjectInitialized(targetDir: string, baseDir: string = DEFAULT_AGENT_DIR): Promise<boolean> {
   const markerPath = path.join(targetDir, baseDir, MARKER_FILE);
   return await fileExists(markerPath);
 }
@@ -32,7 +33,7 @@ export async function isProjectInitialized(targetDir: string, baseDir: string = 
 /**
  * Get marker info if it exists
  */
-export async function getMarkerInfo(targetDir: string, baseDir: string = 'claude'): Promise<MarkerInfo | null> {
+export async function getMarkerInfo(targetDir: string, baseDir: string = DEFAULT_AGENT_DIR): Promise<MarkerInfo | null> {
   const markerPath = path.join(targetDir, baseDir, MARKER_FILE);
 
   if (!(await fileExists(markerPath))) {
@@ -52,7 +53,7 @@ export async function getMarkerInfo(targetDir: string, baseDir: string = 'claude
  */
 export async function createMarker(
   targetDir: string,
-  baseDir: string = 'claude',
+  baseDir: string = DEFAULT_AGENT_DIR,
   projectName?: string
 ): Promise<void> {
   const markerPath = path.join(targetDir, baseDir, MARKER_FILE);
@@ -71,7 +72,7 @@ export async function createMarker(
 /**
  * Remove marker file
  */
-export async function removeMarker(targetDir: string, baseDir: string = 'claude'): Promise<void> {
+export async function removeMarker(targetDir: string, baseDir: string = DEFAULT_AGENT_DIR): Promise<void> {
   const markerPath = path.join(targetDir, baseDir, MARKER_FILE);
   const fs = await import('fs/promises');
 
@@ -85,7 +86,7 @@ export async function removeMarker(targetDir: string, baseDir: string = 'claude'
  */
 export async function updateMarker(
   targetDir: string,
-  baseDir: string = 'claude',
+  baseDir: string = DEFAULT_AGENT_DIR,
   updates: Partial<MarkerInfo>
 ): Promise<void> {
   const existing = await getMarkerInfo(targetDir, baseDir);
