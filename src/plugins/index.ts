@@ -6,6 +6,7 @@
 
 import { systemDetectorPlugin } from './system-detector/index.js';
 import { gitPlugin } from './git/index.js';
+import { promptPresetsPlugin } from './prompt-presets/index.js';
 import type { Plugin } from '../plugin/types.js';
 
 /**
@@ -16,9 +17,9 @@ import type { Plugin } from '../plugin/types.js';
 export const builtinPlugins: Plugin[] = [
   systemDetectorPlugin,
   gitPlugin,
-  // TODO: Add more plugins as they are implemented
+  promptPresetsPlugin,
+  // TODO: Add memory-system plugin (needs gradual extraction from legacy)
   // memorySystemPlugin,
-  // promptPresetsPlugin,
 ];
 
 /**
