@@ -1,11 +1,11 @@
 /**
- * System Detector Plugin
+ * System Detector Plugin (Redesigned with Skills)
  *
- * Automatically detects operating system and development tools.
- * This plugin runs silently during initialization and provides
- * system information that can be used by other plugins.
+ * Provides detection scripts and optional Skills for system environment detection.
+ * Agents run scripts at session start to get fresh environment information.
  */
 
+import * as path from 'path';
 import type {
   Plugin,
   PluginConfig,
@@ -13,179 +13,149 @@ import type {
   PluginContext,
   FileOutput,
 } from '../../plugin/types.js';
-import { detectOS } from './detectors/os.js';
-import { detectPython } from './detectors/python.js';
-import { detectNode } from './detectors/node.js';
-import { formatSystemInfoAsToon } from '../../utils/toon-utils.js';
+import { readFile } from '../../utils/file-ops.js';
 
 /**
- * System detection results
+ * System Detector Plugin Options
  */
-export interface SystemDetectionResult {
-  os: {
-    type: string;
-    name: string;
-    version: string;
-    is_msys2: boolean;
-  };
-  python?: {
-    version: string;
-    package_manager: string;
-  };
-  node?: {
-    version: string;
-    package_manager: string;
-  };
+export interface SystemDetectorOptions {
+  /** Include detection scripts */
+  include_scripts: boolean;
+
+  /** Include as Skills (optional) */
+  include_as_skill: boolean;
 }
 
 /**
  * System Detector Plugin
- *
- * Detects system information automatically without user interaction.
  */
 export const systemDetectorPlugin: Plugin = {
   meta: {
     name: 'system-detector',
     commandName: 'system',
-    version: '1.0.0',
-    description: 'Detect OS and development tools',
+    version: '2.0.0',
+    description: 'System detection scripts and Skills',
     recommended: true,
   },
 
   configuration: {
-    needsConfiguration: false,
+    needsConfiguration: true,
 
-    /**
-     * Configure (silent detection)
-     *
-     * Runs system detection without prompting the user.
-     */
     async configure(context: ConfigurationContext): Promise<PluginConfig> {
-      // Silently detect system information
-      const os = await detectOS();
-      const python = await detectPython();
-      const node = await detectNode();
+      const { ui } = context;
 
-      const detectionResult: SystemDetectionResult = {
-        os,
-        python: python.version ? python : undefined,
-        node: node.version ? node : undefined,
+      // Ask if user wants Skills integration
+      const includeAsSkill = await ui.confirm(
+        'Create system-detector as a Skill (for progressive loading)?',
+        false
+      );
+
+      const options: SystemDetectorOptions = {
+        include_scripts: true, // Always include scripts
+        include_as_skill: includeAsSkill,
       };
 
       return {
         enabled: true,
-        options: {
-          include_in_config: true,
-          detection_result: detectionResult as unknown as Record<string, unknown>,
-        },
+        options: options as any,
       };
     },
 
-    /**
-     * Get summary of detected system
-     *
-     * Displays the detected system information in the final summary.
-     */
     getSummary(config: PluginConfig): string[] {
-      const result = config.options.detection_result as unknown as SystemDetectionResult | undefined;
+      const options = config.options as unknown as SystemDetectorOptions;
+      const lines: string[] = [];
 
-      if (!result) {
-        return ['No system information detected'];
+      lines.push('Detection scripts: included');
+
+      if (options.include_as_skill) {
+        lines.push('Skills integration: enabled');
       }
 
-      const parts: string[] = [];
-
-      // OS info
-      parts.push(result.os.name);
-
-      // Python info
-      if (result.python?.version) {
-        parts.push(`Python ${result.python.version}`);
-      }
-
-      // Node.js info
-      if (result.node?.version) {
-        parts.push(`Node.js ${result.node.version}`);
-      }
-
-      return [`Auto-detected: ${parts.join(', ')}`];
+      return lines;
     },
   },
 
   hooks: {
-    /**
-     * Execute hook - store detection results in shared context
-     */
     async execute(context: PluginContext): Promise<void> {
-      const config = context.config.plugins.get('system-detector');
-
-      if (!config) {
-        return;
-      }
-
-      const result = config.options.detection_result as unknown as SystemDetectionResult | undefined;
-
-      if (result) {
-        // Store in shared context for other plugins to use
-        context.shared.set('system_info', result);
-        context.logger.info(`System detected: ${result.os.name}`);
-      }
+      context.logger.info('System detection scripts installed');
     },
   },
 
-  // No commands exposed
-  commands: [],
-
-  // Prompt contribution to AGENT.md
   prompt: {
     placeholder: 'SYSTEM_INFO_SECTION',
 
     generate: (config: PluginConfig): string => {
-      const result = config.options.detection_result as unknown as SystemDetectionResult | undefined;
-
-      if (!result) {
+      if (!config.enabled) {
         return '';
       }
 
-      const parts: string[] = [result.os.name];
+      const options = config.options as unknown as SystemDetectorOptions;
 
-      if (result.python?.version) {
-        parts.push(`Python ${result.python.version}`);
+      const lines = ['## System Information'];
+      lines.push('');
+      lines.push('**At session start**, run detection to get current environment:');
+      lines.push('');
+      lines.push('```bash');
+      lines.push('node .agent/scripts/detect-system.js');
+      lines.push('```');
+      lines.push('');
+      lines.push('Output: TOON format with OS, runtimes, timezone, locale, timestamp.');
+
+      if (options.include_as_skill) {
+        lines.push('');
+        lines.push('**Skill**: See `.agent/skills/system-detector/SKILL.md` for component scripts.');
       }
 
-      if (result.node?.version) {
-        parts.push(`Node.js ${result.node.version}`);
-      }
-
-      return `## System Information
-
-**Detected**: ${parts.join(', ')}
-
-See \`.agent/system/info.toon\` for complete details.`;
+      return lines.join('\n');
     },
   },
 
-  // File outputs to .agent/ directory
   outputs: {
-    generate: (config: PluginConfig): FileOutput[] => {
-      const result = config.options.detection_result as unknown as SystemDetectionResult | undefined;
-
-      if (!result) {
+    generate: async (config: PluginConfig): Promise<FileOutput[]> => {
+      if (!config.enabled) {
         return [];
       }
 
-      // Generate TOON formatted system info file
-      const toonContent = formatSystemInfoAsToon(result);
+      const options = config.options as unknown as SystemDetectorOptions;
+      const outputs: FileOutput[] = [];
 
-      return [
-        {
-          path: 'system/info.toon',
-          content: toonContent,
-          format: 'toon',
-        },
-      ];
+      // 1. Copy detection scripts
+      const scriptFiles = ['detect-system.js', 'detect-os.js'];
+
+      for (const scriptFile of scriptFiles) {
+        const scriptPath = path.join(process.cwd(), 'templates/scripts', scriptFile);
+        try {
+          const content = await readFile(scriptPath);
+          outputs.push({
+            path: `scripts/${scriptFile}`,
+            content,
+            format: 'markdown',
+          });
+        } catch (err) {
+          // Script template not found, skip
+        }
+      }
+
+      // 2. Optionally create Skill
+      if (options.include_as_skill) {
+        const skillMdPath = path.join(process.cwd(), 'templates/skills/system-detector/SKILL.md');
+        try {
+          const skillContent = await readFile(skillMdPath);
+          outputs.push({
+            path: 'skills/system-detector/SKILL.md',
+            content: skillContent,
+            format: 'markdown',
+          });
+        } catch (err) {
+          // Skill template not found, skip
+        }
+      }
+
+      return outputs;
     },
   },
+
+  commands: [],
 };
 
 export default systemDetectorPlugin;
