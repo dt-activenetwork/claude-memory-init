@@ -127,7 +127,11 @@ export const memorySystemPlugin: Plugin = {
 
       return `## Memory System
 
-This project uses a memory system in \`.agent/memory/\`. See \`.agent/memory/workflow.md\` for usage.`;
+This project uses a memory system in \`.agent/memory/\`.
+
+**CRITICAL**: Use indexes, not find/grep. Read \`.agent/memory/index/tags.toon\` and \`topics.toon\`, then read notes by ID.
+
+See \`.agent/memory/workflow.md\` for complete workflow.`;
     },
   },
 

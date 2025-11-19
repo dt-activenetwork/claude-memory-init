@@ -1,5 +1,27 @@
 # Memory System Workflow
 
+## Index-Based Retrieval (REQUIRED)
+
+**CRITICAL**: Do NOT use find/grep to search memory. Use indexes.
+
+Wrong way:
+```
+❌ find .agent/memory -name "*.md" | xargs grep "authentication"
+❌ grep -r "oauth" .agent/memory/
+```
+
+Correct way:
+```
+✅ Read .agent/memory/index/tags.toon
+✅ Look up tag "auth" → get note IDs [sem-005, sem-008]
+✅ Read sem-005.md and sem-008.md directly
+```
+
+Why indexes exist:
+- Tags/topics are curated (not guessed)
+- Direct file access (no scanning)
+- Token efficient (read only relevant notes)
+
 ## Three-Phase Pattern
 
 ### Phase 1: Read Memory (Before Work)
@@ -7,18 +29,26 @@
 Steps:
 1. Read `.agent/memory/index/tags.toon`
 2. Read `.agent/memory/index/topics.toon`
-3. Query tags/topics for task keywords
-4. Read identified semantic notes
-5. Read last 1-2 episodic notes
+3. Query tags/topics for task keywords (use tags FROM index, not invented)
+4. Read identified semantic notes BY ID (e.g., sem-005)
+5. Read last 1-2 episodic notes BY ID
 
 Example:
 ```
 Task: "Analyze authentication module"
-→ Read tags.toon, find tags: [auth, security, api]
-→ Query topics.toon, find: authentication.implementation
-→ Read sem-005-authentication-architecture.md
-→ Read ep-012-auth-review-session.md
+→ Read tags.toon
+→ Find tag "auth" in index → [sem-005, sem-008]
+→ Find topic "authentication.implementation" → [sem-005]
+→ Read .agent/memory/semantic/sem-005-authentication-architecture.md
+→ Read .agent/memory/episodic/ep-012-auth-review-session.md
 → Start work with existing knowledge
+```
+
+Anti-pattern:
+```
+❌ Guess keyword "authentication"
+❌ grep -r "authentication" .agent/memory/
+❌ Hope to find something
 ```
 
 ### Phase 2: Work (Using Memory)
