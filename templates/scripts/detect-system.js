@@ -48,7 +48,7 @@ function detectOS() {
 }
 
 /**
- * Detect Python environment
+ * Detect Python environment with usage instructions
  */
 function detectPython() {
   try {
@@ -59,31 +59,50 @@ function detectPython() {
 
     // Detect package manager (priority: uv > poetry > pipenv > pip)
     let pkgManager = 'pip';
+    let installCmd = 'pip install';
+    let runCmd = 'python';
+    let venvCmd = 'python -m venv';
+
     try {
       execSync('uv --version 2>&1', { encoding: 'utf-8' });
       pkgManager = 'uv';
+      installCmd = 'uv add';
+      runCmd = 'uv run';
+      venvCmd = 'uv venv';
     } catch {
       try {
         execSync('poetry --version 2>&1', { encoding: 'utf-8' });
         pkgManager = 'poetry';
+        installCmd = 'poetry add';
+        runCmd = 'poetry run';
+        venvCmd = 'poetry install';
       } catch {
         try {
           execSync('pipenv --version 2>&1', { encoding: 'utf-8' });
           pkgManager = 'pipenv';
+          installCmd = 'pipenv install';
+          runCmd = 'pipenv run';
+          venvCmd = 'pipenv --python 3';
         } catch {
           // Default to pip
         }
       }
     }
 
-    return { version, package_manager: pkgManager };
+    return {
+      version,
+      package_manager: pkgManager,
+      install_command: installCmd,
+      run_command: runCmd,
+      venv_command: venvCmd,
+    };
   } catch {
     return null;
   }
 }
 
 /**
- * Detect Node.js environment
+ * Detect Node.js environment with usage instructions
  */
 function detectNode() {
   try {
@@ -92,24 +111,43 @@ function detectNode() {
 
     // Detect package manager (priority: pnpm > bun > yarn > npm)
     let pkgManager = 'npm';
+    let installCmd = 'npm install';
+    let runCmd = 'npm run';
+    let execCmd = 'npx';
+
     try {
       execSync('pnpm --version 2>&1', { encoding: 'utf-8' });
       pkgManager = 'pnpm';
+      installCmd = 'pnpm add';
+      runCmd = 'pnpm';
+      execCmd = 'pnpm exec';
     } catch {
       try {
         execSync('bun --version 2>&1', { encoding: 'utf-8' });
         pkgManager = 'bun';
+        installCmd = 'bun add';
+        runCmd = 'bun run';
+        execCmd = 'bunx';
       } catch {
         try {
           execSync('yarn --version 2>&1', { encoding: 'utf-8' });
           pkgManager = 'yarn';
+          installCmd = 'yarn add';
+          runCmd = 'yarn';
+          execCmd = 'yarn exec';
         } catch {
           // Default to npm
         }
       }
     }
 
-    return { version, package_manager: pkgManager };
+    return {
+      version,
+      package_manager: pkgManager,
+      install_command: installCmd,
+      run_command: runCmd,
+      exec_command: execCmd,
+    };
   } catch {
     return null;
   }
@@ -135,20 +173,18 @@ function detectSystem() {
   const nodeInfo = detectNode();
   const envInfo = detectEnvironment();
 
-  // Build TOON output
+  // Build result with full info
   const runtimes = [];
   if (pythonInfo) {
     runtimes.push({
       name: 'python',
-      version: pythonInfo.version,
-      package_manager: pythonInfo.package_manager
+      ...pythonInfo
     });
   }
   if (nodeInfo) {
     runtimes.push({
       name: 'node',
-      version: nodeInfo.version,
-      package_manager: nodeInfo.package_manager
+      ...nodeInfo
     });
   }
 
@@ -167,25 +203,47 @@ function detectSystem() {
   };
 }
 
-// Output TOON format
+// Output TOON format with instructions
 const data = detectSystem();
 
-console.log('# System Information (Auto-detected)');
+console.log('# System Environment Detection');
+console.log('# This output serves as runtime instructions for AI agents');
 console.log('# TOON format\n');
+
 console.log('system:');
 console.log('  os:');
 console.log(`    type: ${data.os.type}`);
 console.log(`    name: ${data.os.name}`);
 console.log(`    version: "${data.os.version}"`);
+console.log('');
 
-if (data.runtimes.length > 0) {
-  console.log(`  runtimes[${data.runtimes.length}]{name,version,package_manager}:`);
-  data.runtimes.forEach(r => {
-    console.log(`    ${r.name},${r.version},${r.package_manager}`);
-  });
+// Python with commands
+const pythonInfo = data.runtimes.find(r => r.name === 'python');
+if (pythonInfo) {
+  console.log('  python:');
+  console.log(`    version: "${pythonInfo.version}"`);
+  console.log(`    package_manager: ${pythonInfo.package_manager}`);
+  console.log(`    install: "${pythonInfo.install_command}"`);
+  console.log(`    run: "${pythonInfo.run_command}"`);
+  console.log(`    venv: "${pythonInfo.venv_command}"`);
+  console.log('');
+}
+
+// Node.js with commands
+const nodeInfo = data.runtimes.find(r => r.name === 'node');
+if (nodeInfo) {
+  console.log('  node:');
+  console.log(`    version: "${nodeInfo.version}"`);
+  console.log(`    package_manager: ${nodeInfo.package_manager}`);
+  console.log(`    install: "${nodeInfo.install_command}"`);
+  console.log(`    run: "${nodeInfo.run_command}"`);
+  console.log(`    exec: "${nodeInfo.exec_command}"`);
+  console.log('');
 }
 
 console.log('  environment:');
 console.log(`    timezone: ${data.environment.timezone}`);
 console.log(`    locale: ${data.environment.locale}`);
+console.log('');
+
 console.log(`  detected_at: "${data.detected_at}"`);
