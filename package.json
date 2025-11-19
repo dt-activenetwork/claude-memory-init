@@ -14,14 +14,15 @@
     "USAGE_EXAMPLES.md"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "vite build && tsc --emitDeclarationOnly --outDir dist",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "dev": "vite build --watch",
     "start": "node dist/index.js",
-    "clean": "rm -rf dist",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "test:verbose": "jest --verbose",
+    "clean": "rm -rf dist coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
     "postinstall": "node scripts/postinstall.ts",
     "submodule:init": "git submodule update --init --recursive",
     "submodule:update": "git submodule update --remote --merge",
@@ -59,15 +60,13 @@
     "yaml": "^2.3.0"
   },
   "devDependencies": {
-    "@jest/globals": "^30.2.0",
     "@types/fs-extra": "^11.0.0",
     "@types/inquirer": "^9.0.0",
-    "@types/jest": "^30.0.0",
     "@types/node": "^20.0.0",
-    "@vitest/ui": "^4.0.5",
-    "jest": "^30.2.0",
-    "ts-jest": "^29.4.5",
+    "@vitest/coverage-v8": "^4.0.10",
+    "@vitest/ui": "^4.0.10",
     "typescript": "^5.3.0",
-    "vitest": "^4.0.5"
+    "vite": "^7.2.2",
+    "vitest": "^4.0.10"
   }
 }

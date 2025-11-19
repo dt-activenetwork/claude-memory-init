@@ -2,59 +2,57 @@
  * Integration tests for InteractiveInitializer
  */
 
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as path from 'path';
 import * as fs from 'fs/promises';
 import { InteractiveInitializer } from '../../src/core/interactive-initializer.js';
 import { PluginRegistry } from '../../src/plugin/registry.js';
 import type { Plugin, PluginConfig, ConfigurationContext } from '../../src/plugin/types.js';
 
-// Mock chalk - need to use function factory for proper hoisting
-jest.mock('chalk', () => {
-  const createMockChalk = () => {
-    const mockFn: any = (str: string) => str;
-    mockFn.bold = (str: string) => str;
-    mockFn.cyan = (str: string) => str;
-    mockFn.gray = (str: string) => str;
-    mockFn.green = (str: string) => str;
-    mockFn.green.bold = (str: string) => str;
-    return mockFn;
-  };
+// Mock chalk
+vi.mock('chalk', () => {
+  const mockFn: any = (str: string) => str;
+  mockFn.bold = (str: string) => str;
+  mockFn.cyan = (str: string) => str;
+  mockFn.gray = (str: string) => str;
+  mockFn.green = (str: string) => str;
+  mockFn.green.bold = (str: string) => str;
 
-  return { default: createMockChalk() };
+  return { default: mockFn };
 });
 
 // Mock the UI components
-jest.mock('../../src/prompts/components/index.js', () => ({
-  checkboxList: jest.fn(),
-  radioList: jest.fn(),
-  confirm: jest.fn(),
-  input: jest.fn(),
+vi.mock('../../src/prompts/components/index.js', () => ({
+  checkboxList: vi.fn(),
+  radioList: vi.fn(),
+  confirm: vi.fn(),
+  input: vi.fn(),
 }));
 
 // Mock the progress indicator
-jest.mock('../../src/prompts/components/progress.js', () => ({
-  ProgressIndicator: jest.fn().mockImplementation(() => ({
-    start: jest.fn(),
-    nextStep: jest.fn(),
-    succeed: jest.fn(),
-    fail: jest.fn(),
-  })),
+vi.mock('../../src/prompts/components/progress.js', () => ({
+  ProgressIndicator: vi.fn(function (this: any) {
+    this.start = vi.fn();
+    this.nextStep = vi.fn();
+    this.succeed = vi.fn();
+    this.fail = vi.fn();
+    return this;
+  }),
 }));
 
 // Mock the logger
-jest.mock('../../src/utils/logger.js', () => ({
-  info: jest.fn(),
-  success: jest.fn(),
-  error: jest.fn(),
-  warning: jest.fn(),
-  step: jest.fn(),
-  blank: jest.fn(),
+vi.mock('../../src/utils/logger.js', () => ({
+  info: vi.fn(),
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  step: vi.fn(),
+  blank: vi.fn(),
 }));
 
-// Mock console.clear
-global.console.clear = jest.fn();
-global.console.log = jest.fn();
+// Mock console.clear and console.log
+global.console.clear = vi.fn();
+global.console.log = vi.fn();
 
 import * as ui from '../../src/prompts/components/index.js';
 
@@ -136,7 +134,7 @@ describe('InteractiveInitializer', () => {
     initializer = new InteractiveInitializer(registry);
 
     // Reset mocks
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(async () => {
@@ -151,16 +149,16 @@ describe('InteractiveInitializer', () => {
   describe('Dynamic Step Calculation', () => {
     it('should calculate correct total steps with plugins needing configuration', async () => {
       // Mock UI responses
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project') // Project name
         .mockResolvedValueOnce('Test Description'); // Project description
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-with-config',
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true); // Confirm initialization
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true); // Confirm initialization
 
       await initializer.run(testDir);
 
@@ -176,15 +174,15 @@ describe('InteractiveInitializer', () => {
 
     it('should calculate correct total steps with no plugins needing configuration', async () => {
       // Mock UI responses
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
@@ -199,19 +197,19 @@ describe('InteractiveInitializer', () => {
 
   describe('Plugin Configuration Flow', () => {
     it('should configure only plugins that need configuration', async () => {
-      const configureSpy = jest.spyOn(mockPluginWithConfig.configuration!, 'configure');
-      const configureNoConfigSpy = jest.spyOn(mockPluginWithoutConfig.configuration!, 'configure');
+      const configureSpy = vi.spyOn(mockPluginWithConfig.configuration!, 'configure');
+      const configureNoConfigSpy = vi.spyOn(mockPluginWithoutConfig.configuration!, 'configure');
 
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-with-config',
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
@@ -221,11 +219,11 @@ describe('InteractiveInitializer', () => {
     });
 
     it('should handle no plugin selection gracefully', async () => {
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([]);
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([]);
 
       await initializer.run(testDir);
 
@@ -236,17 +234,17 @@ describe('InteractiveInitializer', () => {
 
   describe('Summary and Confirmation', () => {
     it('should display plugin summaries correctly', async () => {
-      const getSummarySpy = jest.spyOn(mockPluginWithConfig.configuration!, 'getSummary');
+      const getSummarySpy = vi.spyOn(mockPluginWithConfig.configuration!, 'getSummary');
 
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-with-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
@@ -254,15 +252,15 @@ describe('InteractiveInitializer', () => {
     });
 
     it('should cancel initialization if user does not confirm', async () => {
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-with-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(false); // Don't confirm
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(false); // Don't confirm
 
       await initializer.run(testDir);
 
@@ -280,23 +278,23 @@ describe('InteractiveInitializer', () => {
   describe('Already Initialized Detection', () => {
     it('should detect already initialized project', async () => {
       // First initialization
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
       // Reset mocks
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Second initialization (should detect)
-      (ui.radioList as jest.MockedFunction<typeof ui.radioList>).mockResolvedValueOnce('keep');
+      (ui.radioList as any<typeof ui.radioList>).mockResolvedValueOnce('keep');
 
       await initializer.run(testDir);
 
@@ -313,33 +311,33 @@ describe('InteractiveInitializer', () => {
 
     it('should allow reinitializati when user confirms', async () => {
       // First initialization
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
       // Reset mocks
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Second initialization with reinitialize
-      (ui.radioList as jest.MockedFunction<typeof ui.radioList>).mockResolvedValueOnce('reinitialize');
+      (ui.radioList as any<typeof ui.radioList>).mockResolvedValueOnce('reinitialize');
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>)
+      (ui.confirm as any<typeof ui.confirm>)
         .mockResolvedValueOnce(true) // Confirm overwrite
         .mockResolvedValueOnce(true); // Confirm final initialization
 
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('New Project')
         .mockResolvedValueOnce('New Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
@@ -353,31 +351,31 @@ describe('InteractiveInitializer', () => {
 
     it('should respect force option and skip detection', async () => {
       // First initialization
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
       // Reset mocks
-      jest.clearAllMocks();
+      vi.clearAllMocks();
 
       // Second initialization with force option
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('New Project')
         .mockResolvedValueOnce('New Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir, { force: true });
 
@@ -388,15 +386,15 @@ describe('InteractiveInitializer', () => {
 
   describe('Initialization Execution', () => {
     it('should create necessary directories', async () => {
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
@@ -413,15 +411,15 @@ describe('InteractiveInitializer', () => {
     });
 
     it('should create marker file after successful initialization', async () => {
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'test-plugin-no-config',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
@@ -457,15 +455,15 @@ describe('InteractiveInitializer', () => {
 
       registry.register(pluginWithHooks);
 
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'hook-test-plugin',
       ]);
 
-      (ui.confirm as jest.MockedFunction<typeof ui.confirm>).mockResolvedValueOnce(true);
+      (ui.confirm as any<typeof ui.confirm>).mockResolvedValueOnce(true);
 
       await initializer.run(testDir);
 
@@ -493,11 +491,11 @@ describe('InteractiveInitializer', () => {
 
       registry.register(errorPlugin);
 
-      (ui.input as jest.MockedFunction<typeof ui.input>)
+      (ui.input as any<typeof ui.input>)
         .mockResolvedValueOnce('Test Project')
         .mockResolvedValueOnce('Test Description');
 
-      (ui.checkboxList as jest.MockedFunction<typeof ui.checkboxList>).mockResolvedValueOnce([
+      (ui.checkboxList as any<typeof ui.checkboxList>).mockResolvedValueOnce([
         'error-plugin',
       ]);
 
