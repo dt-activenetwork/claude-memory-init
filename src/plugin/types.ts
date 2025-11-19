@@ -339,6 +339,61 @@ export interface PluginMeta {
 }
 
 /**
+ * File output from plugin
+ */
+export interface FileOutput {
+  /** Path relative to .agent/ directory */
+  path: string;
+
+  /** File content */
+  content: string;
+
+  /** File format (for documentation and tooling) */
+  format?: 'markdown' | 'toon' | 'json' | 'yaml';
+}
+
+/**
+ * Plugin prompt contribution to AGENT.md
+ */
+export interface PluginPromptContribution {
+  /**
+   * Placeholder name in AGENT.md.template
+   *
+   * The placeholder {{PLACEHOLDER_NAME}} will be replaced with generated content.
+   * If plugin is disabled or returns empty string, placeholder is replaced with empty string.
+   *
+   * @example "GIT_SECTION", "MEMORY_SECTION", "SYSTEM_INFO_SECTION"
+   */
+  placeholder: string;
+
+  /**
+   * Generate content to replace placeholder
+   *
+   * Generated content should include the section title (##) if applicable.
+   * Return empty string to completely remove the section.
+   *
+   * @param config Plugin configuration
+   * @param context Plugin context
+   * @returns Markdown content including section title, or empty string
+   */
+  generate: (config: PluginConfig, context: PluginContext) => Promise<string> | string;
+}
+
+/**
+ * Plugin file outputs
+ */
+export interface PluginOutputs {
+  /**
+   * Generate files to be written to .agent/ directory
+   *
+   * @param config Plugin configuration
+   * @param context Plugin context
+   * @returns Array of file outputs
+   */
+  generate: (config: PluginConfig, context: PluginContext) => Promise<FileOutput[]> | FileOutput[];
+}
+
+/**
  * Plugin definition
  *
  * Complete interface for defining a plugin
@@ -355,4 +410,10 @@ export interface Plugin {
 
   /** CLI commands exposed by the plugin (optional) */
   commands?: PluginCommand[];
+
+  /** Prompt contribution to AGENT.md (optional) */
+  prompt?: PluginPromptContribution;
+
+  /** File outputs to .agent/ directory (optional) */
+  outputs?: PluginOutputs;
 }

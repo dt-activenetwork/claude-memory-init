@@ -11,10 +11,12 @@ import type {
   PluginConfig,
   ConfigurationContext,
   PluginContext,
+  FileOutput,
 } from '../../plugin/types.js';
 import { detectOS } from './detectors/os.js';
 import { detectPython } from './detectors/python.js';
 import { detectNode } from './detectors/node.js';
+import { formatSystemInfoAsToon } from '../../utils/toon-utils.js';
 
 /**
  * System detection results
@@ -133,6 +135,57 @@ export const systemDetectorPlugin: Plugin = {
 
   // No commands exposed
   commands: [],
+
+  // Prompt contribution to AGENT.md
+  prompt: {
+    placeholder: 'SYSTEM_INFO_SECTION',
+
+    generate: (config: PluginConfig): string => {
+      const result = config.options.detection_result as unknown as SystemDetectionResult | undefined;
+
+      if (!result) {
+        return '';
+      }
+
+      const parts: string[] = [result.os.name];
+
+      if (result.python?.version) {
+        parts.push(`Python ${result.python.version}`);
+      }
+
+      if (result.node?.version) {
+        parts.push(`Node.js ${result.node.version}`);
+      }
+
+      return `## System Information
+
+**Detected**: ${parts.join(', ')}
+
+See \`.agent/system/info.toon\` for complete details.`;
+    },
+  },
+
+  // File outputs to .agent/ directory
+  outputs: {
+    generate: (config: PluginConfig): FileOutput[] => {
+      const result = config.options.detection_result as unknown as SystemDetectionResult | undefined;
+
+      if (!result) {
+        return [];
+      }
+
+      // Generate TOON formatted system info file
+      const toonContent = formatSystemInfoAsToon(result);
+
+      return [
+        {
+          path: 'system/info.toon',
+          content: toonContent,
+          format: 'toon',
+        },
+      ];
+    },
+  },
 };
 
 export default systemDetectorPlugin;
