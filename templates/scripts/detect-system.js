@@ -57,17 +57,22 @@ function detectPython() {
 
     if (!version) throw new Error('Not found');
 
-    // Detect package manager
+    // Detect package manager (priority: uv > poetry > pipenv > pip)
     let pkgManager = 'pip';
     try {
-      execSync('poetry --version 2>&1', { encoding: 'utf-8' });
-      pkgManager = 'poetry';
+      execSync('uv --version 2>&1', { encoding: 'utf-8' });
+      pkgManager = 'uv';
     } catch {
       try {
-        execSync('pipenv --version 2>&1', { encoding: 'utf-8' });
-        pkgManager = 'pipenv';
+        execSync('poetry --version 2>&1', { encoding: 'utf-8' });
+        pkgManager = 'poetry';
       } catch {
-        // Default to pip
+        try {
+          execSync('pipenv --version 2>&1', { encoding: 'utf-8' });
+          pkgManager = 'pipenv';
+        } catch {
+          // Default to pip
+        }
       }
     }
 
@@ -85,17 +90,22 @@ function detectNode() {
     const version = execSync('node --version', { encoding: 'utf-8' })
       .trim().replace(/^v/, '');
 
-    // Detect package manager
+    // Detect package manager (priority: pnpm > bun > yarn > npm)
     let pkgManager = 'npm';
     try {
       execSync('pnpm --version 2>&1', { encoding: 'utf-8' });
       pkgManager = 'pnpm';
     } catch {
       try {
-        execSync('yarn --version 2>&1', { encoding: 'utf-8' });
-        pkgManager = 'yarn';
+        execSync('bun --version 2>&1', { encoding: 'utf-8' });
+        pkgManager = 'bun';
       } catch {
-        // Default to npm
+        try {
+          execSync('yarn --version 2>&1', { encoding: 'utf-8' });
+          pkgManager = 'yarn';
+        } catch {
+          // Default to npm
+        }
       }
     }
 
