@@ -2,10 +2,10 @@
  * Tests for PluginLoader
  */
 
-import { describe, it, expect, beforeEach, jest } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock dependencies that have ESM import issues
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../../src/utils/logger.js', () => ({
   info: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('../../src/utils/logger.js', () => ({
   blank: vi.fn()
 }));
 
-vi.mock('../../src/utils/file-ops.js', () => ({
+vi.mock('../../../src/utils/file-ops.js', () => ({
   ensureDir: vi.fn(),
   copyFile: vi.fn(),
   readFile: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('../../src/utils/file-ops.js', () => ({
   writeJsonFile: vi.fn()
 }));
 
-vi.mock('../../src/core/template-engine.js', () => ({
+vi.mock('../../../src/core/template-engine.js', () => ({
   loadTemplate: vi.fn(),
   renderTemplate: vi.fn(),
   loadAndRenderTemplate: vi.fn()
@@ -35,42 +35,12 @@ import { PluginRegistry } from '../../../src/plugin/registry.js';
 import { PluginLoader } from '../../../src/plugin/loader.js';
 import { createMockPluginContext } from '../../../src/plugin/context.js';
 import type { Plugin, PluginContext, CoreConfig } from '../../../src/plugin/types.js';
+import { createMockPlugin, createMockCoreConfig } from './helpers.js';
 
 describe('PluginLoader', () => {
   let registry: PluginRegistry;
   let loader: PluginLoader;
   let context: PluginContext;
-
-  // Helper to create a plugin
-  const createPlugin = (
-    name: string,
-    commandName: string = name,
-    deps: string[] = [],
-    hasHooks = false
-  ): Plugin => ({
-    meta: {
-      name,
-      commandName,
-      version: '1.0.0',
-      description: `Test plugin ${name}`,
-      dependencies: deps.length > 0 ? deps : undefined
-    },
-    hooks: hasHooks ? {
-      beforeInit: async () => {},
-      execute: async () => {},
-      afterInit: async () => {}
-    } : undefined
-  });
-
-  // Helper to create a config
-  const createConfig = (enabledPlugins: string[] = []): CoreConfig => ({
-    project: { name: 'test', root: '.' },
-    output: { base_dir: 'claude' },
-    plugins: enabledPlugins.reduce((acc, name) => {
-      acc[name] = { enabled: true, options: {} };
-      return acc;
-    }, {} as any)
-  });
 
   beforeEach(() => {
     registry = new PluginRegistry();
@@ -80,9 +50,9 @@ describe('PluginLoader', () => {
 
   describe('sortByDependencies', () => {
     it('should sort plugins with no dependencies', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
-      const plugin3 = createPlugin('plugin3', 'cmd3');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+      const plugin3 = createMockPlugin('plugin3', { commandName: 'cmd3' });
 
       const sorted = loader.sortByDependencies([plugin1, plugin2, plugin3]);
 
@@ -94,9 +64,9 @@ describe('PluginLoader', () => {
     });
 
     it('should sort plugins with linear dependencies', () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', []);
-      const pluginB = createPlugin('pluginB', 'cmdB', ['pluginA']);
-      const pluginC = createPlugin('pluginC', 'cmdC', ['pluginB']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB', dependencies: ['pluginA'] });
+      const pluginC = createMockPlugin('pluginC', { commandName: 'cmdC', dependencies: ['pluginB'] });
 
       const sorted = loader.sortByDependencies([pluginC, pluginB, pluginA]);
 
@@ -106,10 +76,10 @@ describe('PluginLoader', () => {
     });
 
     it('should sort plugins with multiple dependencies', () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', []);
-      const pluginB = createPlugin('pluginB', 'cmdB', []);
-      const pluginC = createPlugin('pluginC', 'cmdC', ['pluginA', 'pluginB']);
-      const pluginD = createPlugin('pluginD', 'cmdD', ['pluginC']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB' });
+      const pluginC = createMockPlugin('pluginC', { commandName: 'cmdC', dependencies: ['pluginA', 'pluginB'] });
+      const pluginD = createMockPlugin('pluginD', { commandName: 'cmdD', dependencies: ['pluginC'] });
 
       const sorted = loader.sortByDependencies([pluginD, pluginC, pluginB, pluginA]);
 
@@ -126,11 +96,11 @@ describe('PluginLoader', () => {
         B → C → E
         D → E
       */
-      const pluginA = createPlugin('pluginA', 'cmdA', []);
-      const pluginB = createPlugin('pluginB', 'cmdB', []);
-      const pluginC = createPlugin('pluginC', 'cmdC', ['pluginA', 'pluginB']);
-      const pluginD = createPlugin('pluginD', 'cmdD', []);
-      const pluginE = createPlugin('pluginE', 'cmdE', ['pluginC', 'pluginD']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB' });
+      const pluginC = createMockPlugin('pluginC', { commandName: 'cmdC', dependencies: ['pluginA', 'pluginB'] });
+      const pluginD = createMockPlugin('pluginD', { commandName: 'cmdD' });
+      const pluginE = createMockPlugin('pluginE', { commandName: 'cmdE', dependencies: ['pluginC', 'pluginD'] });
 
       const sorted = loader.sortByDependencies([pluginE, pluginD, pluginC, pluginB, pluginA]);
 
@@ -142,8 +112,8 @@ describe('PluginLoader', () => {
     });
 
     it('should detect circular dependencies (2 plugins)', () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', ['pluginB']);
-      const pluginB = createPlugin('pluginB', 'cmdB', ['pluginA']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA', dependencies: ['pluginB'] });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB', dependencies: ['pluginA'] });
 
       expect(() => loader.sortByDependencies([pluginA, pluginB])).toThrow(
         'Circular dependency detected among plugins: pluginA, pluginB'
@@ -151,9 +121,9 @@ describe('PluginLoader', () => {
     });
 
     it('should detect circular dependencies (3 plugins)', () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', ['pluginC']);
-      const pluginB = createPlugin('pluginB', 'cmdB', ['pluginA']);
-      const pluginC = createPlugin('pluginC', 'cmdC', ['pluginB']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA', dependencies: ['pluginC'] });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB', dependencies: ['pluginA'] });
+      const pluginC = createMockPlugin('pluginC', { commandName: 'cmdC', dependencies: ['pluginB'] });
 
       expect(() => loader.sortByDependencies([pluginA, pluginB, pluginC])).toThrow(
         'Circular dependency detected'
@@ -161,7 +131,7 @@ describe('PluginLoader', () => {
     });
 
     it('should throw error for missing dependency', () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', ['pluginB']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA', dependencies: ['pluginB'] });
 
       expect(() => loader.sortByDependencies([pluginA])).toThrow(
         "Plugin 'pluginA' depends on 'pluginB', but 'pluginB' is not registered or enabled"
@@ -169,7 +139,7 @@ describe('PluginLoader', () => {
     });
 
     it('should handle self-dependency as circular', () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', ['pluginA']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA', dependencies: ['pluginA'] });
 
       expect(() => loader.sortByDependencies([pluginA])).toThrow(
         'Circular dependency detected'
@@ -179,15 +149,15 @@ describe('PluginLoader', () => {
 
   describe('load', () => {
     it('should load plugins in dependency order', async () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', []);
-      const pluginB = createPlugin('pluginB', 'cmdB', ['pluginA']);
-      const pluginC = createPlugin('pluginC', 'cmdC', ['pluginB']);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB', dependencies: ['pluginA'] });
+      const pluginC = createMockPlugin('pluginC', { commandName: 'cmdC', dependencies: ['pluginB'] });
 
       registry.register(pluginA);
       registry.register(pluginB);
       registry.register(pluginC);
 
-      const config = createConfig(['pluginA', 'pluginB', 'pluginC']);
+      const config = createMockCoreConfig(['pluginA', 'pluginB', 'pluginC']);
 
       await loader.load(config, context);
 
@@ -200,23 +170,15 @@ describe('PluginLoader', () => {
     });
 
     it('should only load enabled plugins', async () => {
-      const pluginA = createPlugin('pluginA', 'cmdA', []);
-      const pluginB = createPlugin('pluginB', 'cmdB', []);
-      const pluginC = createPlugin('pluginC', 'cmdC', []);
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB' });
+      const pluginC = createMockPlugin('pluginC', { commandName: 'cmdC' });
 
       registry.register(pluginA);
       registry.register(pluginB);
       registry.register(pluginC);
 
-      const config: CoreConfig = {
-        project: { name: 'test', root: '.' },
-        output: { base_dir: 'claude' },
-        plugins: {
-          pluginA: { enabled: true, options: {} },
-          pluginB: { enabled: false, options: {} },
-          pluginC: { enabled: true, options: {} }
-        }
-      };
+      const config = createMockCoreConfig(['pluginA', 'pluginC'], ['pluginB']);
 
       await loader.load(config, context);
 
@@ -226,7 +188,7 @@ describe('PluginLoader', () => {
     });
 
     it('should handle empty plugin list', async () => {
-      const config = createConfig([]);
+      const config = createMockCoreConfig();
 
       await loader.load(config, context);
 
@@ -256,7 +218,7 @@ describe('PluginLoader', () => {
       registry.register(pluginA);
       registry.register(pluginB);
 
-      const config = createConfig(['pluginA', 'pluginB']);
+      const config = createMockCoreConfig(['pluginA', 'pluginB']);
       await loader.load(config, context);
 
       await loader.executeHook('execute', context);
@@ -282,7 +244,7 @@ describe('PluginLoader', () => {
       registry.register(pluginA);
       registry.register(pluginB);
 
-      const config = createConfig(['pluginA', 'pluginB']);
+      const config = createMockCoreConfig(['pluginA', 'pluginB']);
       await loader.load(config, context);
 
       await loader.executeHook('execute', context);
@@ -300,7 +262,7 @@ describe('PluginLoader', () => {
 
       registry.register(pluginA);
 
-      const config = createConfig(['pluginA']);
+      const config = createMockCoreConfig(['pluginA']);
       await loader.load(config, context);
 
       await expect(loader.executeHook('execute', context)).rejects.toThrow(
@@ -323,7 +285,7 @@ describe('PluginLoader', () => {
 
       registry.register(plugin);
 
-      const config = createConfig(['plugin']);
+      const config = createMockCoreConfig(['plugin']);
       await loader.load(config, context);
 
       await loader.executeHook('beforeInit', context);
@@ -343,13 +305,13 @@ describe('PluginLoader', () => {
     });
 
     it('should return all loaded plugins', async () => {
-      const pluginA = createPlugin('pluginA', 'cmdA');
-      const pluginB = createPlugin('pluginB', 'cmdB');
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
+      const pluginB = createMockPlugin('pluginB', { commandName: 'cmdB' });
 
       registry.register(pluginA);
       registry.register(pluginB);
 
-      const config = createConfig(['pluginA', 'pluginB']);
+      const config = createMockCoreConfig(['pluginA', 'pluginB']);
       await loader.load(config, context);
 
       const loaded = loader.getLoadedPlugins();
@@ -362,11 +324,11 @@ describe('PluginLoader', () => {
 
   describe('clear', () => {
     it('should clear loaded plugins', async () => {
-      const pluginA = createPlugin('pluginA', 'cmdA');
+      const pluginA = createMockPlugin('pluginA', { commandName: 'cmdA' });
 
       registry.register(pluginA);
 
-      const config = createConfig(['pluginA']);
+      const config = createMockCoreConfig(['pluginA']);
       await loader.load(config, context);
 
       expect(loader.getLoadedPlugins()).toHaveLength(1);
@@ -374,6 +336,41 @@ describe('PluginLoader', () => {
       loader.clear();
 
       expect(loader.getLoadedPlugins()).toHaveLength(0);
+    });
+  });
+
+  describe('dependency resolution edge cases', () => {
+    it('should handle diamond dependency pattern', () => {
+      // A depends on B and C, B depends on D, C depends on D
+      const A = createMockPlugin('A', { dependencies: ['B', 'C'] });
+      const B = createMockPlugin('B', { dependencies: ['D'] });
+      const C = createMockPlugin('C', { dependencies: ['D'] });
+      const D = createMockPlugin('D');
+
+      const sorted = loader.sortByDependencies([A, B, C, D]);
+      const names = sorted.map(p => p.meta.name);
+
+      expect(names.indexOf('D')).toBeLessThan(names.indexOf('B'));
+      expect(names.indexOf('D')).toBeLessThan(names.indexOf('C'));
+      expect(names.indexOf('B')).toBeLessThan(names.indexOf('A'));
+      expect(names.indexOf('C')).toBeLessThan(names.indexOf('A'));
+    });
+  });
+
+  describe('hook execution', () => {
+    it('should pass context to hooks', async () => {
+      const executeFn = vi.fn();
+      const plugin: Plugin = {
+        meta: { name: 'test', commandName: 'test', version: '1.0.0', description: 'test' },
+        hooks: { execute: executeFn },
+      };
+
+      registry.register(plugin);
+      const config = createMockCoreConfig(['test']);
+      await loader.load(config, context);
+      await loader.executeHook('execute', context);
+
+      expect(executeFn).toHaveBeenCalledWith(context);
     });
   });
 });

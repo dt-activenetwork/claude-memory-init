@@ -2,10 +2,10 @@
  * Tests for Plugin Context
  */
 
-import { describe, it, expect, jest } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 // Mock dependencies that have ESM import issues
-vi.mock('../../src/utils/logger.js', () => ({
+vi.mock('../../../src/utils/logger.js', () => ({
   info: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock('../../src/utils/logger.js', () => ({
   blank: vi.fn()
 }));
 
-vi.mock('../../src/utils/file-ops.js', () => ({
+vi.mock('../../../src/utils/file-ops.js', () => ({
   ensureDir: vi.fn(),
   copyFile: vi.fn(),
   readFile: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('../../src/utils/file-ops.js', () => ({
   writeJsonFile: vi.fn()
 }));
 
-vi.mock('../../src/core/template-engine.js', () => ({
+vi.mock('../../../src/core/template-engine.js', () => ({
   loadTemplate: vi.fn(),
   renderTemplate: vi.fn(),
   loadAndRenderTemplate: vi.fn()
@@ -33,21 +33,10 @@ vi.mock('../../src/core/template-engine.js', () => ({
 
 import { createPluginContext, createMockPluginContext } from '../../../src/plugin/context.js';
 import type { SharedConfig } from '../../../src/plugin/types.js';
+import { createMockSharedConfig } from './helpers.js';
 
 describe('createPluginContext', () => {
-  const createTestConfig = (): SharedConfig => ({
-    core: {
-      project: {
-        name: 'test-project',
-        root: '/test/project'
-      },
-      output: {
-        base_dir: 'claude'
-      },
-      plugins: {}
-    },
-    plugins: new Map()
-  });
+  const createTestConfig = createMockSharedConfig;
 
   it('should create a context with all required fields', () => {
     const config = createTestConfig();

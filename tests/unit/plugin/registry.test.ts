@@ -5,28 +5,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { PluginRegistry } from '../../../src/plugin/registry.js';
 import type { Plugin, CoreConfig } from '../../../src/plugin/types.js';
+import { createMockPlugin, createMockCoreConfig } from './helpers.js';
 
 describe('PluginRegistry', () => {
   let registry: PluginRegistry;
-
-  // Helper function to create a valid plugin
-  const createPlugin = (name: string, commandName: string = name, deps: string[] = []): Plugin => ({
-    meta: {
-      name,
-      commandName,
-      version: '1.0.0',
-      description: `Test plugin ${name}`,
-      dependencies: deps.length > 0 ? deps : undefined
-    },
-    configuration: {
-      needsConfiguration: false,
-      configure: async () => ({ enabled: true, options: {} }),
-      getSummary: () => []
-    },
-    hooks: {
-      execute: async () => {}
-    }
-  });
 
   beforeEach(() => {
     registry = new PluginRegistry();
@@ -34,7 +16,7 @@ describe('PluginRegistry', () => {
 
   describe('register', () => {
     it('should register a valid plugin', () => {
-      const plugin = createPlugin('test-plugin', 'test');
+      const plugin = createMockPlugin('test-plugin', { commandName: 'test' });
 
       expect(() => registry.register(plugin)).not.toThrow();
       expect(registry.has('test-plugin')).toBe(true);
@@ -80,8 +62,8 @@ describe('PluginRegistry', () => {
     });
 
     it('should throw error when registering duplicate plugin name', () => {
-      const plugin1 = createPlugin('test-plugin', 'test1');
-      const plugin2 = createPlugin('test-plugin', 'test2');
+      const plugin1 = createMockPlugin('test-plugin', { commandName: 'test1' });
+      const plugin2 = createMockPlugin('test-plugin', { commandName: 'test2' });
 
       registry.register(plugin1);
 
@@ -91,8 +73,8 @@ describe('PluginRegistry', () => {
     });
 
     it('should throw error when registering duplicate commandName', () => {
-      const plugin1 = createPlugin('plugin1', 'test');
-      const plugin2 = createPlugin('plugin2', 'test');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'test' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'test' });
 
       registry.register(plugin1);
 
@@ -178,7 +160,7 @@ describe('PluginRegistry', () => {
 
   describe('get', () => {
     it('should retrieve a registered plugin', () => {
-      const plugin = createPlugin('test-plugin', 'test');
+      const plugin = createMockPlugin('test-plugin', { commandName: 'test' });
       registry.register(plugin);
 
       const retrieved = registry.get('test-plugin');
@@ -196,7 +178,7 @@ describe('PluginRegistry', () => {
 
   describe('getByCommandName', () => {
     it('should retrieve plugin by command name', () => {
-      const plugin = createPlugin('test-plugin', 'test-cmd');
+      const plugin = createMockPlugin('test-plugin', { commandName: 'test-cmd' });
       registry.register(plugin);
 
       const retrieved = registry.getByCommandName('test-cmd');
@@ -220,9 +202,9 @@ describe('PluginRegistry', () => {
     });
 
     it('should return all registered plugins', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
-      const plugin3 = createPlugin('plugin3', 'cmd3');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+      const plugin3 = createMockPlugin('plugin3', { commandName: 'cmd3' });
 
       registry.register(plugin1);
       registry.register(plugin2);
@@ -239,7 +221,7 @@ describe('PluginRegistry', () => {
 
   describe('has', () => {
     it('should return true for registered plugin', () => {
-      const plugin = createPlugin('test-plugin', 'test');
+      const plugin = createMockPlugin('test-plugin', { commandName: 'test' });
       registry.register(plugin);
 
       expect(registry.has('test-plugin')).toBe(true);
@@ -252,17 +234,13 @@ describe('PluginRegistry', () => {
 
   describe('getEnabled', () => {
     it('should return all plugins when config is empty', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
 
       registry.register(plugin1);
       registry.register(plugin2);
 
-      const config: CoreConfig = {
-        project: { name: 'test', root: '.' },
-        output: { base_dir: 'claude' },
-        plugins: {}
-      };
+      const config = createMockCoreConfig();
 
       const enabled = registry.getEnabled(config);
 
@@ -270,23 +248,15 @@ describe('PluginRegistry', () => {
     });
 
     it('should filter out explicitly disabled plugins', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
-      const plugin3 = createPlugin('plugin3', 'cmd3');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+      const plugin3 = createMockPlugin('plugin3', { commandName: 'cmd3' });
 
       registry.register(plugin1);
       registry.register(plugin2);
       registry.register(plugin3);
 
-      const config: CoreConfig = {
-        project: { name: 'test', root: '.' },
-        output: { base_dir: 'claude' },
-        plugins: {
-          plugin1: { enabled: true, options: {} },
-          plugin2: { enabled: false, options: {} },
-          plugin3: { enabled: true, options: {} }
-        }
-      };
+      const config = createMockCoreConfig(['plugin1', 'plugin3'], ['plugin2']);
 
       const enabled = registry.getEnabled(config);
 
@@ -295,19 +265,13 @@ describe('PluginRegistry', () => {
     });
 
     it('should include plugins not mentioned in config', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
 
       registry.register(plugin1);
       registry.register(plugin2);
 
-      const config: CoreConfig = {
-        project: { name: 'test', root: '.' },
-        output: { base_dir: 'claude' },
-        plugins: {
-          plugin1: { enabled: true, options: {} }
-        }
-      };
+      const config = createMockCoreConfig(['plugin1']);
 
       const enabled = registry.getEnabled(config);
 
@@ -321,8 +285,8 @@ describe('PluginRegistry', () => {
     });
 
     it('should return correct count of registered plugins', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
 
       registry.register(plugin1);
       expect(registry.count()).toBe(1);
@@ -334,8 +298,8 @@ describe('PluginRegistry', () => {
 
   describe('clear', () => {
     it('should remove all plugins from registry', () => {
-      const plugin1 = createPlugin('plugin1', 'cmd1');
-      const plugin2 = createPlugin('plugin2', 'cmd2');
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
 
       registry.register(plugin1);
       registry.register(plugin2);
@@ -350,13 +314,35 @@ describe('PluginRegistry', () => {
     });
 
     it('should allow re-registration after clear', () => {
-      const plugin = createPlugin('test-plugin', 'test');
+      const plugin = createMockPlugin('test-plugin', { commandName: 'test' });
 
       registry.register(plugin);
       registry.clear();
 
       expect(() => registry.register(plugin)).not.toThrow();
       expect(registry.has('test-plugin')).toBe(true);
+    });
+  });
+
+  describe('edge cases', () => {
+    it('should handle plugin with all optional fields', () => {
+      const fullPlugin = createMockPlugin('full-plugin', {
+        hasHooks: true,
+        hasConfiguration: true,
+        dependencies: ['dep1', 'dep2'],
+      });
+
+      expect(() => registry.register(fullPlugin)).not.toThrow();
+      expect(registry.has('full-plugin')).toBe(true);
+    });
+
+    it('should validate hook types are functions', () => {
+      const invalidPlugin = {
+        meta: { name: 'invalid', commandName: 'inv', version: '1.0.0', description: 'test' },
+        hooks: { execute: 'not a function' as any },
+      };
+
+      expect(() => registry.register(invalidPlugin)).toThrow();
     });
   });
 });
