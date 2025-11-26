@@ -1,0 +1,25 @@
+{
+  "_comment": "Tag-based memory index. Maps tags to note IDs.",
+  "_usage": "Add note IDs to tag arrays when creating/updating notes.",
+  "tags": {
+    "v2.0": ["ep-001", "ep-002", "ep-005", "ep-009", "sem-001"],
+    "architecture": ["ep-001", "sem-001"],
+    "slash-commands": ["ep-002", "ep-008", "sem-001"],
+    "plugin-system": ["ep-001", "ep-006", "ep-007", "sem-001"],
+    "task-system": ["ep-002"],
+    "memory-system": ["ep-002"],
+    "optimization": ["ep-002", "ep-009"],
+    "design-pattern": ["sem-001"],
+    "cli": ["ep-002", "ep-009"],
+    "testing": ["ep-002", "ep-003", "ep-004", "ep-006", "ep-007"],
+    "bdd": ["ep-003", "ep-004", "ep-006"],
+    "cucumber": ["ep-003", "ep-004"],
+    "vitest": ["ep-007"],
+    "unit-test": ["ep-007"],
+    "refactoring": ["ep-007", "ep-009"],
+    "system-detector": ["ep-009"],
+    "documentation": ["ep-005", "ep-009"],
+    "completion": ["ep-005"]
+  },
+  "updated": "2025-11-26T11:30:00Z"
+}

@@ -1,0 +1,43 @@
+{
+  "_comment": "Topic-based memory index. Hierarchical organization of notes.",
+  "_usage": "Organize notes by topic areas for efficient lookup.",
+  "topics": {
+    "v2.0": {
+      "refactor": ["ep-001", "ep-009"],
+      "implementation": ["ep-002", "ep-005"],
+      "architecture": ["sem-001"],
+      "completion": ["ep-005"]
+    },
+    "plugin-system": {
+      "core": ["ep-001"],
+      "slash-commands": ["ep-008", "sem-001"],
+      "integration": ["ep-002"],
+      "testing": ["ep-006", "ep-007"]
+    },
+    "task-system": {
+      "lifecycle": ["ep-002"],
+      "sessions": ["ep-002"],
+      "design": ["sem-001"]
+    },
+    "memory-system": {
+      "commands": ["ep-002", "ep-008", "sem-001"],
+      "workflow": ["ep-002"]
+    },
+    "optimization": {
+      "cli": ["ep-002", "ep-009"],
+      "token-efficiency": ["sem-001"],
+      "system-detector": ["ep-009"]
+    },
+    "testing": {
+      "bdd": ["ep-003", "ep-004", "ep-006"],
+      "unit": ["ep-007"],
+      "integration": ["ep-002"],
+      "smoke": ["ep-002"]
+    },
+    "documentation": {
+      "summaries": ["ep-005", "ep-009"],
+      "guides": ["ep-004"]
+    }
+  },
+  "updated": "2025-11-26T11:30:00Z"
+}
