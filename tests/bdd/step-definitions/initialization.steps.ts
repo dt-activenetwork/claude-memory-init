@@ -7,7 +7,8 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { TestWorld } from '../support/world.js';
 import assert from 'node:assert';
-import { vi } from 'vitest';
+import sinon from 'sinon';
+import { ui } from '../../../src/core/ui.js';
 import type { CheckboxOption } from '../../../src/prompts/components/checkbox-list.js';
 import type { RadioOption } from '../../../src/prompts/components/radio-list.js';
 
@@ -130,17 +131,21 @@ Then('应该创建以下目录结构:', async function (this: TestWorld, dataTab
 
 /**
  * Run initialization with mocked UI inputs
+ *
+ * ⚠️ 重要：此函数依赖 mockUIComponents() 正确 mock 所有 UI 交互。
+ * 如果测试超时，很可能是某个 UI 调用没有被 mock。
  */
 async function runInitializationWithMocks(world: TestWorld): Promise<void> {
   try {
-    // Dynamically import to avoid circular dependencies
+    // IMPORTANT: Mock UI BEFORE importing any modules
+    // This ensures the ui facade is stubbed before it gets imported
+    mockUIComponents(world);
+
+    // Dynamically import after mocking
     const { PluginRegistry } = await import('../../../src/plugin/registry.js');
     const { InteractiveInitializer } = await import(
       '../../../src/core/interactive-initializer.js'
     );
-
-    // Mock UI components
-    await mockUIComponents(world);
 
     // Create plugin registry and register all plugins
     const registry = new PluginRegistry();
@@ -181,19 +186,47 @@ async function runInitializationWithMocks(world: TestWorld): Promise<void> {
 }
 
 /**
- * Mock UI components based on world mock inputs
+ * Mock UI components using sinon stubs
+ *
+ * ⚠️ 重要：Mock 完整性检查清单
+ *
+ * 每当新增插件或修改 UI 交互时，必须更新此函数！
+ * 如果 Mock 不完整，测试会超时（5秒）等待用户输入。
+ *
+ * 当前已 mock 的 UI 调用：
+ *
+ * input:
+ *   - "Project name" / "项目名称" → projectName
+ *   - "description" / "描述" → projectDescription
+ *
+ * checkboxList:
+ *   - "features" / "功能" → selectedPlugins (功能选择)
+ *   - "enhancement" / "Enhancement" → 固定值 (prompt-presets 插件)
+ *
+ * radioList:
+ *   - "What would you like to do" → reinitAction (重新初始化)
+ *   - "base mode" / "Base" / "preset" → 'code-review' (prompt-presets 插件)
+ *   - "Python package manager" → preferredPythonManager
+ *   - "Node.js/Node package manager" → preferredNodeManager
+ *
+ * confirm:
+ *   - "Proceed" / "initialization" → confirmInit
+ *   - "preferred managers" → true
+ *   - "Skill" → false
+ *
+ * 调试技巧：如果测试超时，添加 console.log 查看哪个 message 没有匹配：
+ *   sinon.stub(ui, 'radioList').callsFake(async (message, ...) => {
+ *     console.log('[MOCK] radioList:', message);
+ *     ...
+ *   });
+ *
+ * 详细说明见：claude/memory/semantic/sem-002-ui-facade-pattern.md
  */
-async function mockUIComponents(world: TestWorld): Promise<void> {
-  // Note: This requires proper module mocking setup
-  // You may need to use vi.mock() at the module level
+function mockUIComponents(world: TestWorld): void {
+  // Use the top-level imported ui object (shared singleton)
 
-  const { input } = await import('../../../src/prompts/components/input.js');
-  const { checkboxList } = await import('../../../src/prompts/components/checkbox-list.js');
-  const { radioList } = await import('../../../src/prompts/components/radio-list.js');
-  const { confirm } = await import('../../../src/prompts/components/confirm.js');
-
-  // Mock input
-  vi.mocked(input).mockImplementation(async (message: string, defaultValue?: string) => {
+  // Stub input
+  sinon.stub(ui, 'input').callsFake(async (message: string, defaultValue?: string) => {
     if (message.includes('Project name') || message.includes('项目名称')) {
       return world.getMockInput('projectName') || 'test-project';
     }
@@ -203,42 +236,57 @@ async function mockUIComponents(world: TestWorld): Promise<void> {
     return defaultValue || '';
   });
 
-  // Mock checkboxList
-  vi.mocked(checkboxList).mockImplementation(
+  // Stub checkboxList
+  sinon.stub(ui, 'checkboxList').callsFake(
     async (message: string, options: CheckboxOption[]) => {
       if (message.includes('features') || message.includes('功能')) {
         return world.getMockInput('selectedPlugins') || [];
+      }
+      // Enhancements selection (prompt-presets plugin)
+      if (message.includes('enhancement') || message.includes('Enhancement')) {
+        return ['system-information', 'memory-instructions', 'full-context-reading'];
       }
       // Default: return checked items
       return options.filter((opt) => opt.checked).map((opt) => opt.value);
     }
   );
 
-  // Mock radioList
-  vi.mocked(radioList).mockImplementation(
+  // Stub radioList
+  sinon.stub(ui, 'radioList').callsFake(
     async (message: string, options: RadioOption[], defaultValue?: string) => {
-      // Always use 'project' scope in tests to avoid writing to ~/.claude/
-      if (message.includes('stored') || message.includes('storage')) {
-        return 'project';
-      }
-
       // Re-initialization options
       if (message.includes('What would you like to do')) {
         return world.getMockInput('reinitAction') || 'keep';
+      }
+
+      // Base mode selection (prompt-presets plugin)
+      if (message.includes('base mode') || message.includes('Base') || message.includes('preset')) {
+        return 'code-review';
+      }
+
+      // Preferred Python package manager
+      if (message.includes('Python package manager')) {
+        return world.getMockInput('preferredPythonManager') || defaultValue || options[0]?.value || '';
+      }
+
+      // Preferred Node.js package manager
+      if (message.includes('Node.js package manager') || message.includes('Node package manager')) {
+        return world.getMockInput('preferredNodeManager') || defaultValue || options[0]?.value || '';
       }
 
       return defaultValue || options[0]?.value || '';
     }
   );
 
-  // Mock confirm
-  vi.mocked(confirm).mockImplementation(
+  // Stub confirm
+  sinon.stub(ui, 'confirm').callsFake(
     async (message: string, defaultValue: boolean = true) => {
       if (message.includes('Proceed') || message.includes('initialization')) {
         return world.getMockInput('confirmInit') ?? true;
       }
-      if (message.includes('existing system configuration')) {
-        return false; // Don't use existing config in tests
+      // Use preferred managers for this project?
+      if (message.includes('preferred managers')) {
+        return true;
       }
       if (message.includes('Skill')) {
         return false; // Don't create skills by default

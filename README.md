@@ -2,14 +2,22 @@
 
 Interactive CLI tool for setting up Claude in your projects with a plugin-based architecture.
 
-[![Version](https://img.shields.io/badge/version-2.0.0--alpha-blue)](https://github.com/dt-activenetwork/claude-memory-init)
+[![Version](https://img.shields.io/badge/version-2.1.0--beta-blue)](https://github.com/dt-activenetwork/claude-memory-init)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 ---
 
-## ✨ What's New in v2.0
+## ✨ What's New in v2.1
 
-🎉 **Major Refactor**: Plugin-based architecture with TOON format and interactive CLI
+🎉 **Two-Layer Memory Architecture**: User Memory vs Project Memory
+
+- **👤 User Memory**: Store preferences in `~/.claude/` (shared across projects)
+- **📁 Project Memory**: Project-specific config in `.agent/`
+- **🔄 Smart Reuse**: Skip re-configuration when initializing new projects
+- **➕ Append Mode**: Preserve existing AGENT.md/CLAUDE.md content
+- **🧪 UI Facade Pattern**: Solved Cucumber BDD testing mock issues
+
+### Previous Updates (v2.0)
 
 - **🔌 Plugin System**: Modular architecture with 5 composable plugins
 - **💬 Interactive CLI**: Conversational setup flow (no parameters to remember)
@@ -18,7 +26,7 @@ Interactive CLI tool for setting up Claude in your projects with a plugin-based 
 - **🔍 Smart Detection**: Multi-package-manager support with user preferences
 - **💾 Persistent Config**: One-time setup, saved preferences
 
-> **Status**: v2.0 core features implemented. Testing complete (100/100 passed).
+> **Status**: v2.1 beta. Testing: 196 unit tests + 32 BDD scenarios passing.
 
 ---
 
@@ -71,7 +79,7 @@ Claude Init uses a plugin-based architecture. Choose the features you need:
 
 | Plugin | Description | Features |
 |--------|-------------|----------|
-| **System Detection** | Auto-detect environment | Multi-package-manager selection, persistent preferences |
+| **System Detection** | Auto-detect environment | Two-layer memory (user/project), smart reuse across projects |
 | **Memory System** | Knowledge persistence | Semantic, episodic, procedural memory with TOON indexes |
 | **Git Integration** | Git automation | Auto-commit, remote sync, gitignore management |
 | **Task System** | Task workflows | State tracking, output management, workflows |

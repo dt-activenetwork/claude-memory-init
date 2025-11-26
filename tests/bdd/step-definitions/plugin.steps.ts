@@ -298,6 +298,7 @@ When('执行所有插件的 {string} 钩子', async function (this: PluginTestWo
 
 When('执行 {string} 钩子', async function (this: PluginTestWorld, hookName: string) {
   this.context = createMockPluginContext();
+  this.executionOrder = []; // Initialize execution order tracking
 
   const config: CoreConfig = {
     project: { name: 'test', root: '.' },
@@ -305,10 +306,39 @@ When('执行 {string} 钩子', async function (this: PluginTestWorld, hookName: 
     plugins: {},
   };
 
-  // Enable all registered plugins
+  // Enable all registered plugins and add execution tracking
+  const trackedPlugins: Plugin[] = [];
   for (const plugin of this.registry.getAll()) {
     config.plugins[plugin.meta.name] = { enabled: true, options: {} };
+
+    // Add execution tracking if plugin has the hook
+    const hookKey = hookName as keyof typeof plugin.hooks;
+    if (plugin.hooks?.[hookKey]) {
+      const originalHook = plugin.hooks[hookKey];
+      const trackedPlugin: Plugin = {
+        ...plugin,
+        hooks: {
+          ...plugin.hooks,
+          [hookName]: async (ctx: PluginContext) => {
+            this.executionOrder.push(plugin.meta.name);
+            if (originalHook) {
+              await originalHook(ctx);
+            }
+          }
+        }
+      };
+      trackedPlugins.push(trackedPlugin);
+    } else {
+      trackedPlugins.push(plugin);
+    }
   }
+
+  // Replace registry with tracked plugins
+  this.registry.clear();
+  for (const plugin of trackedPlugins) {
+    this.registry.register(plugin);
+  }
+  this.loader = new PluginLoader(this.registry);
 
   try {
     await this.loader.load(config, this.context);
@@ -398,10 +428,24 @@ Then('然后 {string} 的钩子应该执行', async function (this: PluginTestWo
 });
 
 Then('只有 {string} 的钩子被执行', async function (this: PluginTestWorld, name: string) {
-  // This requires the execution tracking to be set up properly in the When step
-  // For now, we just verify the plugin is in the execution order
-  assert.ok(this.executionOrder.includes(name), `Only ${name} hook should be executed`);
-  // In a full implementation, we would verify that only this plugin executed
+  // Verify executionOrder is initialized
+  assert.ok(Array.isArray(this.executionOrder), 'Execution order should be initialized');
+
+  // Verify the specified plugin was executed
+  assert.ok(this.executionOrder.includes(name), `Plugin ${name} hook should be executed`);
+
+  // Verify only this plugin was executed (length should be 1)
+  assert.strictEqual(
+    this.executionOrder.length,
+    1,
+    `Only one plugin should execute, but ${this.executionOrder.length} executed: ${this.executionOrder.join(', ')}`
+  );
+
+  assert.strictEqual(
+    this.executionOrder[0],
+    name,
+    `Only ${name} hook should be executed, but got ${this.executionOrder[0]}`
+  );
 });
 
 Then('钩子应该收到包含以下字段的上下文:', async function (this: PluginTestWorld, dataTable: DataTable) {

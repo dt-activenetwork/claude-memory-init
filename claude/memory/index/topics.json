@@ -8,6 +8,11 @@
       "architecture": ["sem-001"],
       "completion": ["ep-005"]
     },
+    "v2.1": {
+      "architecture": ["ep-010", "sem-002"],
+      "system-detector": ["ep-010"],
+      "testing": ["ep-010", "sem-002"]
+    },
     "plugin-system": {
       "core": ["ep-001"],
       "slash-commands": ["ep-008", "sem-001"],
@@ -21,7 +26,8 @@
     },
     "memory-system": {
       "commands": ["ep-002", "ep-008", "sem-001"],
-      "workflow": ["ep-002"]
+      "workflow": ["ep-002"],
+      "architecture": ["ep-010"]
     },
     "optimization": {
       "cli": ["ep-002", "ep-009"],
@@ -29,15 +35,17 @@
       "system-detector": ["ep-009"]
     },
     "testing": {
-      "bdd": ["ep-003", "ep-004", "ep-006"],
+      "bdd": ["ep-003", "ep-004", "ep-006", "ep-010", "sem-002"],
       "unit": ["ep-007"],
       "integration": ["ep-002"],
-      "smoke": ["ep-002"]
+      "smoke": ["ep-002"],
+      "mocking": ["sem-002"],
+      "ui-facade": ["sem-002"]
     },
     "documentation": {
       "summaries": ["ep-005", "ep-009"],
       "guides": ["ep-004"]
     }
   },
-  "updated": "2025-11-26T11:30:00Z"
+  "updated": "2025-11-26"
 }

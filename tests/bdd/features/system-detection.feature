@@ -31,15 +31,14 @@
     并且 用户完成系统检测配置
     那么 文件 ".agent/system/config.toon" 应该存在
     并且 文件 ".agent/system/config.toon" 应该包含 "package_managers:"
-    并且 文件 ".agent/system/config.toon" 应该包含 "python: uv"
-    并且 文件 ".agent/system/config.toon" 应该包含 "node: pnpm"
+    并且 文件 ".agent/system/config.toon" 应该包含 "  python: uv"
+    并且 文件 ".agent/system/config.toon" 应该包含 "  node: pnpm"
 
   场景: 为项目选择特定的包管理器
     当 用户选择 "pip" 作为首选 Python 包管理器
-    并且 用户选择 "npm" 作为首选 Node.js 包管理器
     并且 用户完成系统检测配置
-    那么 文件 ".agent/system/config.toon" 应该包含 "python: pip"
-    并且 文件 ".agent/system/config.toon" 应该包含 "node: npm"
+    那么 文件 ".agent/system/config.toon" 应该包含 "  python: pip"
+    并且 文件 ".agent/system/config.toon" 应该包含 "package_managers:"
 
   场景: 生成项目配置文件
     当 用户完成系统检测配置

@@ -127,6 +127,7 @@ Then('文件 {string} 应该包含 {string}', async function (
 ) {
   const fullPath = path.join(this.projectDir, filePath);
   const content = await fs.readFile(fullPath, 'utf-8');
+
   assert.ok(
     content.includes(expectedContent),
     `Expected ${filePath} to contain "${expectedContent}"`

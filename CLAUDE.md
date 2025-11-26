@@ -3,7 +3,7 @@
 A CLI tool for initializing Claude Agent systems in projects with a plugin-based architecture.
 
 **Repository:** https://github.com/dt-activenetwork/claude-memory-init
-**Version:** 2.0.0-alpha
+**Version:** 2.1.0-beta
 
 ## Quick Reference
 
@@ -40,7 +40,7 @@ project/
 └── .agent/
     ├── config.toon             # Main configuration
     ├── system/
-    │   └── info.toon           # System detection results (cached)
+    │   └── config.toon         # Project system configuration
     ├── git/
     │   ├── rules.md            # Git operation rules
     │   └── config.toon         # Git configuration
@@ -56,7 +56,15 @@ project/
     │   ├── output/             # Task deliverables
     │   └── tmp/                # Temporary files (gitignored)
     └── presets/                # Custom prompts
+
+~/.claude/                      # User Memory (cross-project)
+├── system/
+│   └── preferences.toon        # User system preferences
+├── preferences/                # User preferences
+└── cache/                      # Cache directory
 ```
+
+**Note**: User Memory (`~/.claude/`) stores cross-project preferences like OS info and preferred package managers, reducing re-configuration when initializing new projects.
 
 ## Project Structure
 
@@ -69,6 +77,7 @@ claude-memory-init/
 │   ├── core/                   # Core framework
 │   │   ├── initializer.ts      # Main initialization
 │   │   ├── interactive-initializer.ts  # Interactive flow
+│   │   ├── ui.ts               # UI Facade (for testability)
 │   │   ├── template-engine.ts  # Template rendering
 │   │   ├── agent-assembler.ts  # AGENT.md assembly
 │   │   ├── config-loader.ts    # Config loading

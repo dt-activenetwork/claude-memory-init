@@ -7,6 +7,8 @@
 import { Given, When, Then } from '@cucumber/cucumber';
 import { TestWorld } from '../support/world.js';
 import assert from 'node:assert';
+import sinon from 'sinon';
+import { ui } from '../../../src/core/ui.js';
 
 // ============ Given Steps ============
 
@@ -90,8 +92,11 @@ When('用户选择 {string} 作为首选 Node.js 包管理器', async function (
 
 
 When('用户完成系统检测配置', async function (this: TestWorld) {
-  // Import the initialization helper from initialization.steps.ts
-  // For simplicity, we'll inline a simplified version here
+  // IMPORTANT: Mock UI BEFORE importing InteractiveInitializer
+  // This ensures the ui facade is stubbed before it gets imported by InteractiveInitializer
+  mockSystemDetectorUI(this);
+
+  // Import modules after mocking
   const { PluginRegistry } = await import('../../../src/plugin/registry.js');
   const { InteractiveInitializer } = await import(
     '../../../src/core/interactive-initializer.js'
@@ -99,9 +104,6 @@ When('用户完成系统检测配置', async function (this: TestWorld) {
   const { default: systemDetectorPlugin } = await import(
     '../../../src/plugins/system-detector/index.js'
   );
-
-  // Mock UI to return test inputs
-  await mockSystemDetectorUI(this);
 
   // Create registry and initializer
   const registry = new PluginRegistry();
@@ -188,18 +190,25 @@ Then('应该检测到语言设置', async function (this: TestWorld) {
 // ============ Helper Functions ============
 
 /**
- * Mock UI components specifically for system detector tests
+ * Mock UI components using sinon stubs
+ *
+ * ⚠️ 重要：Mock 完整性检查清单
+ *
+ * 此函数与 initialization.steps.ts 中的 mockUIComponents 功能相同，
+ * 专门用于 system-detection 相关的测试场景。
+ *
+ * 每当新增插件或修改 UI 交互时，必须同步更新两个文件：
+ * - tests/bdd/step-definitions/initialization.steps.ts
+ * - tests/bdd/step-definitions/system-detection.steps.ts (本文件)
+ *
+ * 如果测试超时（5秒），说明某个 UI 调用没有被 mock，测试在等待用户输入。
+ *
+ * 详细说明见：claude/memory/semantic/sem-002-ui-facade-pattern.md
  */
-async function mockSystemDetectorUI(world: TestWorld): Promise<void> {
-  const { vi } = await import('vitest');
-
-  const { input } = await import('../../../src/prompts/components/input.js');
-  const { checkboxList } = await import('../../../src/prompts/components/checkbox-list.js');
-  const { radioList } = await import('../../../src/prompts/components/radio-list.js');
-  const { confirm } = await import('../../../src/prompts/components/confirm.js');
-
-  // Mock input
-  vi.mocked(input).mockImplementation(async (message: string, defaultValue?: string) => {
+function mockSystemDetectorUI(world: TestWorld): void {
+  // Use the top-level imported ui object (shared singleton)
+  // Stub input
+  sinon.stub(ui, 'input').callsFake(async (message: string, defaultValue?: string) => {
     if (message.includes('Project name')) {
       return world.getMockInput('projectName') || 'test-project';
     }
@@ -209,17 +218,26 @@ async function mockSystemDetectorUI(world: TestWorld): Promise<void> {
     return defaultValue || '';
   });
 
-  // Mock checkboxList
-  vi.mocked(checkboxList).mockImplementation(async (message: string, options: any[]) => {
+  // Stub checkboxList
+  sinon.stub(ui, 'checkboxList').callsFake(async (message: string, options: any[]) => {
     if (message.includes('features')) {
       return world.getMockInput('selectedPlugins') || ['system-detector'];
     }
-    return options.filter((opt) => opt.checked).map((opt) => opt.value);
+    // Enhancements selection (prompt-presets plugin)
+    if (message.includes('enhancement') || message.includes('Enhancement')) {
+      return ['system-information', 'memory-instructions', 'full-context-reading'];
+    }
+    return options.filter((opt: any) => opt.checked).map((opt: any) => opt.value);
   });
 
-  // Mock radioList
-  vi.mocked(radioList).mockImplementation(
+  // Stub radioList
+  sinon.stub(ui, 'radioList').callsFake(
     async (message: string, options: any[], defaultValue?: string) => {
+      // Base mode selection (prompt-presets plugin)
+      if (message.includes('base mode') || message.includes('Base') || message.includes('preset')) {
+        return 'code-review';
+      }
+
       // Preferred Python package manager
       if (message.includes('Python package manager')) {
         return world.getMockInput('preferredPythonManager') || defaultValue || options[0]?.value || '';
@@ -234,14 +252,11 @@ async function mockSystemDetectorUI(world: TestWorld): Promise<void> {
     }
   );
 
-  // Mock confirm
-  vi.mocked(confirm).mockImplementation(async (message: string, defaultValue: boolean = true) => {
+  // Stub confirm
+  sinon.stub(ui, 'confirm').callsFake(async (message: string, defaultValue: boolean = true) => {
     // Use preferred managers for this project? - default to yes
-    if (message.includes('preferred managers for this project')) {
+    if (message.includes('preferred managers')) {
       return true;
-    }
-    if (message.includes('existing system configuration')) {
-      return false; // Don't use existing config in tests
     }
     if (message.includes('Skill')) {
       return false; // Don't create skills by default

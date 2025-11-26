@@ -19,7 +19,7 @@ import {
   type Logger,
   type FileOutput,
 } from '../plugin/types.js';
-import * as ui from '../prompts/components/index.js';
+import { ui } from './ui.js';
 import { ProgressIndicator } from '../prompts/components/progress.js';
 import * as logger from '../utils/logger.js';
 import {
@@ -93,12 +93,9 @@ export class InteractiveInitializer {
     this.pluginRegistry = pluginRegistry;
     this.pluginLoader = new PluginLoader(pluginRegistry);
     this.logger = logger;
-    this.uiComponents = {
-      checkboxList: ui.checkboxList,
-      radioList: ui.radioList,
-      confirm: ui.confirm,
-      input: ui.input,
-    };
+    // Use ui object directly instead of extracting references
+    // This allows tests to stub ui methods and have them work in plugins
+    this.uiComponents = ui as UIComponents;
   }
 
   /**
