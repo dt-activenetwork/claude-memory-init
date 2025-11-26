@@ -23,6 +23,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
+    "test:bdd": "NODE_OPTIONS='--import tsx' cucumber-js",
+    "test:bdd:dry": "NODE_OPTIONS='--import tsx' cucumber-js --dry-run",
+    "test:all": "pnpm test && pnpm test:bdd",
     "postinstall": "node scripts/dev/postinstall.ts",
     "submodule:init": "git submodule update --init --recursive",
     "submodule:update": "git submodule update --remote --merge",
@@ -61,11 +64,13 @@
     "yaml": "^2.3.0"
   },
   "devDependencies": {
+    "@cucumber/cucumber": "^12.2.0",
     "@types/fs-extra": "^11.0.0",
     "@types/inquirer": "^9.0.0",
     "@types/node": "^20.0.0",
     "@vitest/coverage-v8": "^4.0.10",
     "@vitest/ui": "^4.0.10",
+    "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "^5.3.0",
     "vite": "^7.2.2",
