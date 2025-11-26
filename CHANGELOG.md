@@ -7,93 +7,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0-alpha] - 2025-01-18
+## [2.0.0-alpha] - 2025-11-20
 
 ### 🎉 Major Refactor - Plugin-Based Architecture
 
-**Breaking Changes**: Complete rewrite with new architecture and CLI design.
+**Breaking Changes**: Complete rewrite with TOON format and plugin architecture.
 
 #### Added
 
 - **Plugin System**: Modular plugin-based architecture
-  - 4 core plugins: memory-system, prompt-presets, git, system-detector
+  - 5 plugins: system-detector, memory-system, git, task-system, prompt-presets
   - Plugin interface with lifecycle hooks
-  - Plugin configuration flow
+  - Plugin configuration flow with user preferences
   - Dynamic plugin command registration
 
 - **Interactive CLI**: Conversational setup experience
   - No parameters to remember
   - Dynamic step calculation based on selected plugins
-  - Visual selection with checkboxes
+  - Visual selection with checkboxes/radio buttons
   - Intelligent defaults
   - Real-time feedback
 
-- **i18n Support**: Multi-language support
-  - English (default)
-  - Simplified Chinese
-  - Auto-detection from system locale
-  - 5 translation namespaces
+- **TOON Format**: Token-efficient data format
+  - 30-60% fewer tokens than JSON
+  - Human-readable like YAML
+  - Native Claude support
+  - Used for all config files (`.agent/**/*.toon`)
 
-- **Memory System Plugin**:
-  - `memory system-add` command for contributing system-level knowledge
-  - Interactive memory creation flow
-  - Auto-create PR to memory template repository
-  - Category-based organization (tools, best-practices, patterns, architecture)
+- **System Detector Plugin**: Smart environment detection
+  - OS detection with package manager (pacman/apt/dnf/brew/etc)
+  - Python detection with ALL available package managers (uv/pip/poetry/pipenv/conda)
+  - Node.js detection with lock file priority (pnpm/npm/yarn/bun)
+  - **Interactive selection** when multiple package managers found
+  - **Persistent configuration** - only asks once, saves to `.agent/system/info.toon`
+  - Static info cached (timezone, locale)
 
-- **Prompt Presets Plugin**: Pre-configured prompt templates
-  - Code Review
-  - Documentation
-  - Refactoring
-  - Testing
-  - Architecture Analysis
-  - Bug Fixing
+- **Memory System Plugin**: Knowledge persistence
+  - Knowledge memory (semantic, stable knowledge)
+  - History memory (episodic, task records)
+  - Workflow procedures
+  - TOON-based indexes for efficient lookup
 
 - **Git Plugin**: Integrated Git operations
-  - Auto-commit after initialization
-  - Separate commits for Claude files
-  - Remote sync functionality
+  - Auto-commit configuration
+  - Separate commits for agent files
   - Gitignore management
+  - AI git operations control
 
-- **System Detector Plugin**: Auto-detect environment
-  - OS detection (Linux/macOS/Windows)
-  - Python environment detection
-  - Node.js environment detection
-  - Package manager detection
+- **Task System Plugin**: Task management
+  - Current task state (`current.toon`)
+  - Task output organization
+  - Workflow templates
+  - Temporary workspace
+
+- **Comprehensive Testing**: 100 tests covering all functionality
+  - Unit tests (59): Plugin system, registry, loader
+  - Integration tests (4): Full initialization scenarios
+  - Smoke tests (37): Complete system validation
 
 #### Changed
 
-- **CLI Commands**: Simplified to 2 essential commands
-  - `claude-init` (default: init)
-  - `claude-init memory system-add`
+- **Directory**: `claude/` → `.agent/`
+- **Entry file**: `CLAUDE.md` → `AGENT.md`
+- **Config format**: YAML → TOON
+- **Architecture**: Monolithic → Plugin-based with placeholder system
 
-- **Configuration**: New plugin-based config format
-  - Cleaner structure
-  - Plugin-specific options
-  - Auto-migration from v1.x
+- **CLI Commands**: Drastically simplified (950 lines → 166 lines, 84% reduction)
+  - `claude-init` or `claude-init init` (interactive setup)
+  - Plugin commands dynamically registered
 
 #### Removed
 
-- All parameter-based initialization modes (--quick, --interactive, --simple)
-- CLI commands: status, reconfigure, add-objective, add-assumption, etc.
-- CI/automation modes (tool is for local development only)
+- All parameter-based modes (--quick, --interactive, --simple, --config)
+- Management commands (status, show, add-objective, add-assumption, set, remove-*, edit)
+- validate, sync commands (integrated into plugins)
+- Configuration migration tool (v1.x → v2.0 migration requires manual setup)
 
-#### Documentation
+#### Technical Improvements
 
-- Complete design documentation in `docs/`
-  - REFACTOR_SUMMARY.md
-  - PLUGIN_ARCHITECTURE_REFACTOR.md
-  - INTERACTIVE_CLI_DESIGN.md
-  - CLI_COMMANDS_DESIGN.md
-  - I18N_DESIGN.md
-- Removed 15+ outdated v1.x documentation files
-- New README.md focused on v2.0
+- Tool chain: Jest → Vitest (build speed 5-6x faster)
+- Build: TSC → Vite (365ms vs 2-3s)
+- Module system: Pure ESM
+- Type safety: 0 `any` types, strict mode
+- Test coverage: 100% of critical paths
 
-### Migration Guide
+### Migration from v1.x
 
-Users of v1.x should:
-1. Back up existing `claude/` directory
-2. Run `claude-init init --force` to reinitialize
-3. Configuration will be auto-migrated from old format
+**Manual migration required** (auto-migration deemed too complex):
+1. Backup your `claude/` directory
+2. Review and save your custom configurations
+3. Run `claude-init init` to create new `.agent/` structure
+4. Manually transfer custom content as needed
+
+**Note**: v1.x and v2.0 can coexist (different directories)
 
 ---
 

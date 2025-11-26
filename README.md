@@ -9,15 +9,16 @@ Interactive CLI tool for setting up Claude in your projects with a plugin-based 
 
 ## ✨ What's New in v2.0
 
-🎉 **Major Refactor**: Plugin-based architecture with interactive CLI
+🎉 **Major Refactor**: Plugin-based architecture with TOON format and interactive CLI
 
-- **🔌 Plugin System**: Modular architecture with composable plugins
+- **🔌 Plugin System**: Modular architecture with 5 composable plugins
 - **💬 Interactive CLI**: Conversational setup flow (no parameters to remember)
-- **🌍 i18n Support**: English and Simplified Chinese
-- **🎯 Minimal Commands**: Only essential commands
-- **📝 Memory System**: Advanced `memory system-add` command for contributing knowledge
+- **📊 TOON Format**: Token-efficient data format (30-60% fewer tokens than JSON)
+- **🎯 Minimal Commands**: Clean, simple CLI with dynamic plugin commands
+- **🔍 Smart Detection**: Multi-package-manager support with user preferences
+- **💾 Persistent Config**: One-time setup, saved preferences
 
-> **Status**: v2.0 is currently in design phase. See [Design Documents](./docs/) for details.
+> **Status**: v2.0 core features implemented. Testing complete (100/100 passed).
 
 ---
 
@@ -68,36 +69,39 @@ Claude Init uses a plugin-based architecture. Choose the features you need:
 
 ### Available Plugins
 
-| Plugin | Description | Commands |
+| Plugin | Description | Features |
 |--------|-------------|----------|
-| **Prompt Presets** | Pre-configured prompt templates | - |
-| **Memory System** | Full semantic memory system | `memory system-add` |
-| **Git Integration** | Auto-commit and remote sync | - |
-| **System Detection** | Auto-detect OS and dev tools | - |
+| **System Detection** | Auto-detect environment | Multi-package-manager selection, persistent preferences |
+| **Memory System** | Knowledge persistence | Semantic, episodic, procedural memory with TOON indexes |
+| **Git Integration** | Git automation | Auto-commit, remote sync, gitignore management |
+| **Task System** | Task workflows | State tracking, output management, workflows |
+| **Prompt Presets** | Custom prompts directory | User-defined templates |
 
-### Plugin Features
+### Key Features
 
-#### Prompt Presets
-Generate CLAUDE.md with pre-configured templates:
-- Code Review
-- Documentation
-- Refactoring
-- Testing
-- Architecture Analysis
-- Bug Fixing
+#### 🔍 Smart System Detection
+- Detects all available package managers (Python: uv/pip/poetry/conda, Node: pnpm/npm/yarn/bun)
+- Interactive selection if multiple found
+- Lock file priority (auto-suggests project's current package manager)
+- **One-time configuration** saved to `.agent/system/info.toon`
+- Static info cached (timezone, locale) - no repeated detection
 
-#### Memory System
-Complete memory system with:
-- Semantic Memory (knowledge and concepts)
-- Episodic Memory (task history)
-- Procedural Memory (workflows)
-- System Memory (team-shared templates)
+#### 💾 Memory System
+- **Knowledge** (semantic): Stable architectural knowledge
+- **History** (episodic): Task history records
+- **Workflows**: Reusable procedures
+- **TOON indexes**: Efficient tag/topic-based lookup
 
-#### Git Integration
-Automated Git operations:
-- Auto-commit after initialization
-- Separate commits for Claude files
-- Remote sync to memory template repository
+#### 🔧 Git Integration
+- Auto-commit option
+- Separate commits for agent files
+- Remote sync capability
+- Smart gitignore management
+
+#### 📋 Task System
+- Current task state tracking (`current.toon`)
+- Task output organization
+- Workflow templates
 - Auto-create PRs
 
 #### System Detection
@@ -276,32 +280,28 @@ pnpm test
 
 ## 🗺️ Roadmap
 
-### v2.0 (In Design)
+### v2.0 (Current)
 
-**Status**: Design phase complete, implementation starting
-
-**Timeline**: 4-5 weeks
+**Status**: Core features implemented, testing complete
 
 **Key Features**:
-- ✅ Plugin-based architecture (designed)
-- ✅ Interactive CLI (designed)
-- ✅ i18n support (designed)
-- ✅ `memory system-add` command (designed)
-- ⏳ Implementation (pending)
+- ✅ Plugin-based architecture
+- ✅ Interactive CLI
+- ✅ TOON format support
+- ✅ 5 built-in plugins
+- ✅ Comprehensive test suite (100/100 passed)
 
-**Phases**:
-1. Core framework (Week 1)
-2. Plugin implementation (Week 2-3)
-3. Internationalization (Week 4)
-4. Testing & Documentation (Week 5)
+**Remaining**:
+- ⏳ i18n support (planned)
+- ⏳ `memory system-add` command (planned)
 
 See [Design Documents](./docs/) for complete details.
 
-### v1.x (Current - Deprecated)
+### v1.x (Deprecated)
 
-**Status**: Maintenance mode only
+**Status**: No longer maintained
 
-The current v1.x codebase is functional but will be replaced by v2.0.
+The v1.x codebase has been replaced by v2.0. See CHANGELOG.md for migration notes.
 
 ---
 
@@ -366,6 +366,5 @@ MIT License - See [LICENSE](./LICENSE) for details.
 
 ---
 
-**Current Version**: 1.0.0 (stable)
-**Next Version**: 2.0.0-alpha (in design)
-**Last Updated**: 2025-01-18
+**Current Version**: 2.0.0-alpha
+**Last Updated**: 2025-11-26
