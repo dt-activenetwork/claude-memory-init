@@ -1,7 +1,7 @@
 /**
  * Python Environment Detection
  *
- * Detects Python version and package manager (pip, pipenv, poetry, conda).
+ * Detects Python version and all available package managers.
  */
 
 import { exec } from 'child_process';
@@ -13,72 +13,85 @@ const execAsync = promisify(exec);
  * Python detection result
  */
 export interface PythonInfo {
-  version: string;        // e.g., '3.11.0' or '' if not found
-  package_manager: string; // 'pip' | 'pipenv' | 'poetry' | 'conda' | ''
+  version: string;                    // e.g., '3.11.0' or '' if not found
+  path: string;                       // Python executable path
+  available_managers: string[];       // All detected package managers
 }
 
 /**
- * Detect Python environment
- *
- * @returns Python version and package manager
+ * Python info with user selection
  */
-export async function detectPython(): Promise<PythonInfo> {
-  let version = '';
-  let package_manager = '';
+export interface PythonInfoWithSelection extends PythonInfo {
+  selected_manager: string;           // User-selected package manager
+}
 
-  // Try to detect Python version
+/**
+ * Detect Python version and path
+ *
+ * @returns Python version and executable path
+ */
+export async function detectPythonVersion(): Promise<{ version: string; path: string }> {
+  // Try python3 first (more common on modern systems)
   try {
-    const { stdout } = await execAsync('python --version');
+    const { stdout } = await execAsync('python3 --version');
     const match = stdout.match(/Python (\d+\.\d+\.\d+)/);
     if (match) {
-      version = match[1];
+      return { version: match[1], path: 'python3' };
     }
   } catch {
-    // Try python3
+    // Try python
     try {
-      const { stdout } = await execAsync('python3 --version');
+      const { stdout } = await execAsync('python --version');
       const match = stdout.match(/Python (\d+\.\d+\.\d+)/);
       if (match) {
-        version = match[1];
+        return { version: match[1], path: 'python' };
       }
     } catch {
       // Python not found
     }
   }
 
-  // If Python is found, detect package manager
-  if (version) {
-    // Check for conda
+  return { version: '', path: '' };
+}
+
+/**
+ * Detect all available Python package managers
+ *
+ * @returns Array of available package managers in priority order
+ */
+export async function detectAvailablePythonPackageManagers(): Promise<string[]> {
+  const available: string[] = [];
+
+  // Check in priority order
+  const managers = ['uv', 'poetry', 'pipenv', 'conda', 'pip'];
+
+  for (const manager of managers) {
     try {
-      await execAsync('conda --version');
-      package_manager = 'conda';
+      const command = manager === 'pip' ? 'pip --version || pip3 --version' : `${manager} --version`;
+      await execAsync(command);
+      available.push(manager);
     } catch {
-      // Check for poetry
-      try {
-        await execAsync('poetry --version');
-        package_manager = 'poetry';
-      } catch {
-        // Check for pipenv
-        try {
-          await execAsync('pipenv --version');
-          package_manager = 'pipenv';
-        } catch {
-          // Default to pip
-          try {
-            await execAsync('pip --version');
-            package_manager = 'pip';
-          } catch {
-            try {
-              await execAsync('pip3 --version');
-              package_manager = 'pip';
-            } catch {
-              package_manager = 'pip'; // Assume pip exists if Python exists
-            }
-          }
-        }
-      }
+      // Manager not available
     }
   }
 
-  return { version, package_manager };
+  // If no package manager found, assume pip exists with Python
+  return available.length > 0 ? available : ['pip'];
+}
+
+/**
+ * Detect Python environment (complete detection)
+ *
+ * @returns Python version, path, and all available package managers
+ */
+export async function detectPython(): Promise<PythonInfo> {
+  const { version, path } = await detectPythonVersion();
+
+  if (!version) {
+    return { version: '', path: '', available_managers: [] };
+  }
+
+  const available_managers = await detectAvailablePythonPackageManagers();
+
+  return { version, path, available_managers };
 }

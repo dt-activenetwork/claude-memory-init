@@ -5,6 +5,13 @@
  * allowing modular and extensible functionality in claude-init v2.0.
  */
 
+import type { MemoryScope } from '../constants.js';
+
+/**
+ * Re-export MemoryScope for convenience
+ */
+export type { MemoryScope };
+
 /**
  * Logger interface providing various log levels
  */
@@ -133,6 +140,13 @@ export type PluginOptionValue = string | number | boolean | string[] | Record<st
 export interface PluginConfig {
   enabled: boolean;
   options: Record<string, PluginOptionValue>;
+
+  /**
+   * Selected memory scope for this plugin instance
+   * - 'project': Data stored in project/.agent/
+   * - 'user': Data stored in ~/.claude/
+   */
+  scope?: MemoryScope;
 }
 
 /**
@@ -336,13 +350,32 @@ export interface PluginMeta {
 
   /** Names of plugins this plugin depends on (optional) */
   dependencies?: string[];
+
+  /**
+   * Default memory scope for this plugin
+   * - 'project': Plugin data is project-specific (default)
+   * - 'user': Plugin data is user-level (cross-project)
+   *
+   * Note: Some plugins (like system-detector) may offer user choice.
+   */
+  defaultScope?: MemoryScope;
+
+  /**
+   * Whether the user can choose the memory scope during configuration
+   * If true, plugin will prompt user to select scope during setup.
+   */
+  scopeSelectable?: boolean;
 }
 
 /**
  * File output from plugin
  */
 export interface FileOutput {
-  /** Path relative to .agent/ directory */
+  /**
+   * Path relative to base directory
+   * - For 'project' scope: relative to .agent/
+   * - For 'user' scope: relative to ~/.claude/
+   */
   path: string;
 
   /** File content */
@@ -350,6 +383,13 @@ export interface FileOutput {
 
   /** File format (for documentation and tooling) */
   format?: 'markdown' | 'toon' | 'json' | 'yaml';
+
+  /**
+   * Memory scope for this output
+   * - 'project': Written to project/.agent/ (default)
+   * - 'user': Written to ~/.claude/
+   */
+  scope?: MemoryScope;
 }
 
 /**
@@ -412,6 +452,26 @@ export interface PluginGitignoreContribution {
 }
 
 /**
+ * Slash command definition
+ *
+ * Slash commands are prompt templates that can be invoked by users or AI.
+ * Commands encapsulate complex workflows in reusable, parameterized prompts.
+ */
+export interface SlashCommand {
+  /** Command name (e.g., "memory-search", "task-status") */
+  name: string;
+
+  /** Short description of what the command does */
+  description: string;
+
+  /** Argument hint for help text (e.g., "[tag-name]", "[task-id]") */
+  argumentHint?: string;
+
+  /** Template file path relative to templates/commands/ directory */
+  templateFile: string;
+}
+
+/**
  * Plugin definition
  *
  * Complete interface for defining a plugin
@@ -428,6 +488,9 @@ export interface Plugin {
 
   /** CLI commands exposed by the plugin (optional) */
   commands?: PluginCommand[];
+
+  /** Slash commands provided by this plugin (optional) */
+  slashCommands?: SlashCommand[];
 
   /** Prompt contribution to AGENT.md (optional) */
   prompt?: PluginPromptContribution;

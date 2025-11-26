@@ -15,10 +15,11 @@ const execAsync = promisify(exec);
  * OS detection result
  */
 export interface OSInfo {
-  type: string;      // 'linux' | 'windows' | 'darwin'
-  name: string;      // e.g., 'Ubuntu 22.04', 'Windows 10', 'macOS'
-  version: string;   // e.g., '22.04', '10.0.19041', '14.0'
-  is_msys2: boolean; // true if running in MSYS2 environment
+  type: string;            // 'linux' | 'windows' | 'darwin'
+  name: string;            // e.g., 'Ubuntu 22.04', 'Windows 10', 'macOS'
+  version: string;         // e.g., '22.04', '10.0.19041', '14.0'
+  is_msys2: boolean;       // true if running in MSYS2 environment
+  package_manager: string; // System package manager: 'apt', 'yum', 'pacman', 'brew', etc.
 }
 
 /**
@@ -91,5 +92,70 @@ export async function detectOS(): Promise<OSInfo> {
       version = os.release();
   }
 
-  return { type, name, version, is_msys2 };
+  // Detect system package manager
+  const package_manager = await detectSystemPackageManager(type, is_msys2);
+
+  return { type, name, version, is_msys2, package_manager };
+}
+
+/**
+ * Detect system package manager
+ *
+ * @param osType - OS type ('linux', 'windows', 'darwin')
+ * @param isMsys2 - Is running in MSYS2 environment
+ * @returns Package manager name
+ */
+async function detectSystemPackageManager(osType: string, isMsys2: boolean): Promise<string> {
+  if (osType === 'darwin') {
+    // Check for Homebrew on macOS
+    try {
+      await execAsync('brew --version');
+      return 'brew';
+    } catch {
+      return 'brew'; // Assume brew should be used on macOS
+    }
+  }
+
+  if (osType === 'windows') {
+    if (isMsys2) {
+      return 'pacman'; // MSYS2 uses pacman
+    }
+    // Check for common Windows package managers
+    try {
+      await execAsync('choco --version');
+      return 'choco';
+    } catch {
+      try {
+        await execAsync('winget --version');
+        return 'winget';
+      } catch {
+        return 'winget'; // Default to winget on modern Windows
+      }
+    }
+  }
+
+  if (osType === 'linux') {
+    // Check for various Linux package managers
+    const managers = [
+      { command: 'pacman --version', name: 'pacman' },      // Arch-based
+      { command: 'apt --version', name: 'apt' },            // Debian/Ubuntu
+      { command: 'dnf --version', name: 'dnf' },            // Fedora
+      { command: 'yum --version', name: 'yum' },            // RHEL/CentOS
+      { command: 'zypper --version', name: 'zypper' },      // openSUSE
+      { command: 'apk --version', name: 'apk' },            // Alpine
+    ];
+
+    for (const { command, name } of managers) {
+      try {
+        await execAsync(command);
+        return name;
+      } catch {
+        // Try next
+      }
+    }
+
+    return 'apt'; // Default to apt
+  }
+
+  return '';
 }

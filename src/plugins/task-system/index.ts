@@ -11,6 +11,7 @@ import type {
   ConfigurationContext,
   PluginContext,
   FileOutput,
+  SlashCommand,
 } from '../../plugin/types.js';
 import { readFile } from '../../utils/file-ops.js';
 import * as path from 'path';
@@ -37,6 +38,53 @@ export const taskSystemPlugin: Plugin = {
     description: 'Task workflows, state tracking, and outputs',
     recommended: true,
   },
+
+  slashCommands: [
+    {
+      name: 'task-create',
+      description: 'Create task with dedicated prompt',
+      argumentHint: '[task-name]',
+      templateFile: 'task/create.md',
+    },
+    {
+      name: 'task-start',
+      description: 'Start executing a task',
+      argumentHint: '[task-id]',
+      templateFile: 'task/start.md',
+    },
+    {
+      name: 'task-pause',
+      description: 'Pause current task (save state)',
+      templateFile: 'task/pause.md',
+    },
+    {
+      name: 'task-resume',
+      description: 'Resume a paused task',
+      argumentHint: '[task-id]',
+      templateFile: 'task/resume.md',
+    },
+    {
+      name: 'task-status',
+      description: 'Show current task state',
+      templateFile: 'task/status.md',
+    },
+    {
+      name: 'task-list',
+      description: 'List all tasks',
+      argumentHint: '[filter]',
+      templateFile: 'task/list.md',
+    },
+    {
+      name: 'task-incomplete',
+      description: 'List unfinished tasks',
+      templateFile: 'task/incomplete.md',
+    },
+    {
+      name: 'task-complete',
+      description: 'Mark task as complete',
+      templateFile: 'task/complete.md',
+    },
+  ],
 
   configuration: {
     needsConfiguration: true,
@@ -99,19 +147,55 @@ export const taskSystemPlugin: Plugin = {
 
       const lines = ['## Task System'];
       lines.push('');
-      lines.push('Task workflows and outputs managed in `.agent/tasks/`.');
+      lines.push('Two-phase task management: Define → Execute (with session support)');
       lines.push('');
 
-      if (options.enable_tracking) {
-        lines.push('**Current task**: See `.agent/tasks/current.toon` for active task state.');
-      }
-
-      if (options.enable_output) {
-        lines.push('**Task outputs**: Store in `.agent/tasks/output/`.');
-      }
-
+      lines.push('### Workflow');
       lines.push('');
-      lines.push('**Workflows**: See `.agent/tasks/workflows/` for reusable procedures.');
+      lines.push('**Phase 1 - Define Task**:');
+      lines.push('1. `/task-create <name>` - Create task with dedicated prompt');
+      lines.push('2. Review/edit the task prompt');
+      lines.push('');
+      lines.push('**Phase 2 - Execute Task** (may span multiple sessions):');
+      lines.push('1. `/task-start <task-id>` - Begin execution');
+      lines.push('2. Work on task...');
+      lines.push('3. `/task-pause` - Save state (end of session)');
+      lines.push('4. `/task-resume <task-id>` - Continue in new session');
+      lines.push('5. Repeat steps 2-4 as needed');
+      lines.push('6. `/task-complete` - Mark done');
+      lines.push('');
+
+      lines.push('### Available Commands');
+      lines.push('');
+      lines.push('**Lifecycle**:');
+      lines.push('- `/task-create <name>` - Create task + write prompt');
+      lines.push('- `/task-start <id>` - Start executing task');
+      lines.push('- `/task-pause` - Pause current task');
+      lines.push('- `/task-resume [id]` - Resume paused task');
+      lines.push('- `/task-complete` - Mark task done');
+      lines.push('');
+      lines.push('**Query**:');
+      lines.push('- `/task-status` - Current task state');
+      lines.push('- `/task-list [filter]` - All tasks (active/paused/completed)');
+      lines.push('- `/task-incomplete` - Unfinished tasks');
+      lines.push('');
+
+      lines.push('### Key Principles');
+      lines.push('');
+      lines.push('- ✅ **Define before execute**: Write prompt first');
+      lines.push('- ✅ **One task at a time**: Focus matters');
+      lines.push('- ✅ **Pause between sessions**: Save context');
+      lines.push('- ✅ **Resume with full context**: No information loss');
+      lines.push('- ❌ **Don\'t skip prompt**: It guides execution');
+      lines.push('');
+
+      lines.push('Each task has:');
+      lines.push('- Dedicated prompt: `.agent/tasks/prompts/task-NNN-name.md`');
+      lines.push('- State file: `.agent/tasks/states/task-NNN.toon`');
+      lines.push('- Session history: Multiple sessions in state');
+      lines.push('');
+
+      lines.push('Commands handle lifecycle. Prompts define requirements.');
 
       return lines.join('\n');
     },
@@ -198,6 +282,50 @@ Use for intermediate files, scratch work, etc.
       outputs.push({
         path: 'tasks/tmp/README.md',
         content: tmpReadme,
+        format: 'markdown',
+      });
+
+      // 5. Slash commands for task operations
+      const taskCommands = ['create', 'start', 'pause', 'resume', 'status', 'list', 'incomplete', 'complete'];
+
+      for (const cmd of taskCommands) {
+        const cmdPath = path.join(process.cwd(), `templates/commands/task/${cmd}.md`);
+        try {
+          const cmdContent = await readFile(cmdPath);
+          outputs.push({
+            path: `commands/task-${cmd}.md`,
+            content: cmdContent,
+            format: 'markdown',
+          });
+        } catch (err) {
+          // Command template not found, skip
+        }
+      }
+
+      // 6. Create directories for task structure
+      outputs.push({
+        path: 'tasks/prompts/README.md',
+        content: `# Task Prompts
+
+Each task has a dedicated prompt file defining its requirements.
+
+File format: task-NNN-descriptive-name.md
+
+Created by: /task-create <name>
+`,
+        format: 'markdown',
+      });
+
+      outputs.push({
+        path: 'tasks/states/README.md',
+        content: `# Task States
+
+TOON files tracking task status, progress, and session history.
+
+File format: task-NNN.toon
+
+Updated by: /task-start, /task-pause, /task-resume, /task-complete
+`,
         format: 'markdown',
       });
 

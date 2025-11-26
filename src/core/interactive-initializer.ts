@@ -29,17 +29,26 @@ import {
   removeMarker,
   type MarkerInfo,
 } from './marker.js';
-import { ensureDir, writeFile } from '../utils/file-ops.js';
+import { ensureDir, writeFile, fileExists, readFile } from '../utils/file-ops.js';
 import { assembleAgentMd, type AgentTemplateVariables } from './agent-assembler.js';
 import { getCurrentDate } from '../utils/date-utils.js';
 import {
   DEFAULT_AGENT_DIR,
   AGENT_MD_FILENAME,
+  LEGACY_AGENT_MD_FILENAME,
   AGENT_MD_TEMPLATE,
   AGENT_SUBDIRS,
   MEMORY_SUBDIRS,
   TASK_SUBDIRS,
+  USER_MEMORY_DIR,
 } from '../constants.js';
+import {
+  ensureUserMemoryStructure,
+  writeScopedFile,
+  getScopeBaseDir,
+  appendOrCreateFile,
+  findFirstExistingFile,
+} from '../utils/file-ops.js';
 
 /**
  * Project information collected during initialization
@@ -526,7 +535,10 @@ export class InteractiveInitializer {
   }
 
   /**
-   * Write plugin outputs to .agent/ directory
+   * Write plugin outputs to appropriate directories based on scope
+   *
+   * Outputs with scope='user' go to ~/.claude/
+   * Outputs with scope='project' (default) go to .agent/
    */
   private async writePluginOutputs(
     plugins: Plugin[],
@@ -535,6 +547,30 @@ export class InteractiveInitializer {
     agentDir: string,
     baseDir: string
   ): Promise<void> {
+    // Track if we need to create User Memory structure
+    let needsUserMemory = false;
+
+    // First pass: check if any outputs need User Memory
+    for (const plugin of plugins) {
+      if (plugin.outputs) {
+        const config = configs.get(plugin.meta.name);
+        if (!config) continue;
+
+        const outputs = await plugin.outputs.generate(config, context);
+        if (outputs.some(output => output.scope === 'user')) {
+          needsUserMemory = true;
+          break;
+        }
+      }
+    }
+
+    // Create User Memory structure if needed
+    if (needsUserMemory) {
+      await ensureUserMemoryStructure();
+      context.logger.info(`Initialized: User Memory (~/.claude/)`);
+    }
+
+    // Second pass: write all outputs
     for (const plugin of plugins) {
       if (plugin.outputs) {
         const config = configs.get(plugin.meta.name);
@@ -543,23 +579,35 @@ export class InteractiveInitializer {
         const outputs = await plugin.outputs.generate(config, context);
 
         for (const output of outputs) {
-          const fullPath = path.join(agentDir, output.path);
-          const dir = path.dirname(fullPath);
+          const scope = output.scope || 'project';
 
-          // Ensure directory exists
-          await ensureDir(dir);
+          if (scope === 'user') {
+            // Write to User Memory (~/.claude/)
+            await writeScopedFile(output.path, output.content, 'user');
+            context.logger.info(`Created: ~/.claude/${output.path}`);
+          } else {
+            // Write to Project Memory (.agent/)
+            const fullPath = path.join(agentDir, output.path);
+            const dir = path.dirname(fullPath);
 
-          // Write file
-          await writeFile(fullPath, output.content);
+            // Ensure directory exists
+            await ensureDir(dir);
 
-          context.logger.info(`Created: ${baseDir}/${output.path}`);
+            // Write file
+            await writeFile(fullPath, output.content);
+
+            context.logger.info(`Created: ${baseDir}/${output.path}`);
+          }
         }
       }
     }
   }
 
   /**
-   * Generate and write AGENT.md
+   * Generate and write AGENT.md (or CLAUDE.md)
+   *
+   * If an existing AGENT.md or CLAUDE.md file exists, appends new content
+   * after a blank line instead of overwriting.
    */
   private async generateAgentMd(
     targetDir: string,
@@ -581,14 +629,26 @@ export class InteractiveInitializer {
     // Template path
     const templatePath = path.join(process.cwd(), 'templates/agent', AGENT_MD_TEMPLATE);
 
-    // Assemble AGENT.md
-    const content = await assembleAgentMd(templatePath, variables, plugins, configs, context);
+    // Assemble new AGENT.md content
+    const newContent = await assembleAgentMd(templatePath, variables, plugins, configs, context);
 
-    // Write to root directory
+    // Check for existing files (prefer AGENT.md over CLAUDE.md)
     const agentMdPath = path.join(targetDir, AGENT_MD_FILENAME);
-    await writeFile(agentMdPath, content);
+    const claudeMdPath = path.join(targetDir, LEGACY_AGENT_MD_FILENAME);
 
-    context.logger.success(`Generated: ${AGENT_MD_FILENAME}`);
+    // Find existing file or use default path
+    const existingFilePath = await findFirstExistingFile([agentMdPath, claudeMdPath]);
+    const targetFilePath = existingFilePath || agentMdPath;
+
+    // Append to existing or create new
+    const wasAppended = await appendOrCreateFile(targetFilePath, newContent);
+
+    const fileName = path.basename(targetFilePath);
+    if (wasAppended) {
+      context.logger.success(`Updated: ${fileName} (appended new content)`);
+    } else {
+      context.logger.success(`Generated: ${fileName}`);
+    }
   }
 
   /**
@@ -605,10 +665,48 @@ export class InteractiveInitializer {
     console.log(chalk.gray(`  ✓ ${baseDir}/`));
     console.log();
 
+    // Show available slash commands
+    const allSlashCommands = this.collectAllSlashCommands();
+
+    if (allSlashCommands.length > 0) {
+      console.log(chalk.bold('Available slash commands:'));
+      for (const cmd of allSlashCommands) {
+        const hint = cmd.argumentHint ? ` ${cmd.argumentHint}` : '';
+        console.log(chalk.gray(`  • /${cmd.name}${hint} - ${cmd.description}`));
+      }
+      console.log();
+    }
+
     console.log(chalk.bold('Next steps:'));
     console.log(chalk.gray(`  • Review ${AGENT_MD_FILENAME} and customize as needed`));
     console.log(chalk.gray('  • Start chatting with Claude in this project'));
+    if (allSlashCommands.length > 0) {
+      console.log(chalk.gray('  • Try slash commands like /memory-search or /task-status'));
+    }
     console.log(chalk.gray(`  • Run 'claude-init --help' for more commands`));
     console.log();
+  }
+
+  /**
+   * Collect all slash commands from enabled plugins
+   */
+  private collectAllSlashCommands(): Array<{ name: string; description: string; argumentHint?: string }> {
+    const commands: Array<{ name: string; description: string; argumentHint?: string }> = [];
+
+    const plugins = this.pluginLoader.getLoadedPlugins();
+
+    for (const plugin of plugins) {
+      if (plugin.slashCommands && plugin.slashCommands.length > 0) {
+        for (const cmd of plugin.slashCommands) {
+          commands.push({
+            name: cmd.name,
+            description: cmd.description,
+            argumentHint: cmd.argumentHint,
+          });
+        }
+      }
+    }
+
+    return commands;
   }
 }

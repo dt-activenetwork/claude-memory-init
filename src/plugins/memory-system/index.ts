@@ -11,6 +11,7 @@ import type {
   ConfigurationContext,
   PluginContext,
   FileOutput,
+  SlashCommand,
 } from '../../plugin/types.js';
 import { readFile, writeFile, ensureDir, copyFile } from '../../utils/file-ops.js';
 import { getCurrentDate } from '../../utils/date-utils.js';
@@ -37,6 +38,32 @@ export const memorySystemPlugin: Plugin = {
     description: 'Memory system for knowledge persistence',
     recommended: true,
   },
+
+  slashCommands: [
+    {
+      name: 'memory-search',
+      description: 'Find notes by tag',
+      argumentHint: '[tag-name]',
+      templateFile: 'memory/search.md',
+    },
+    {
+      name: 'memory-query',
+      description: 'Query notes by topic',
+      argumentHint: '[topic-path]',
+      templateFile: 'memory/query.md',
+    },
+    {
+      name: 'memory-index',
+      description: 'Show complete memory index',
+      templateFile: 'memory/index.md',
+    },
+    {
+      name: 'memory-recent',
+      description: 'Show N recent notes',
+      argumentHint: '[count]',
+      templateFile: 'memory/recent.md',
+    },
+  ],
 
   configuration: {
     needsConfiguration: true,
@@ -115,11 +142,36 @@ export const memorySystemPlugin: Plugin = {
 
       return `## Memory System
 
-This project uses a memory system in \`.agent/memory/\`.
+Memory-driven workflow for efficient knowledge reuse.
 
-**CRITICAL**: Use indexes, not find/grep. Read \`.agent/memory/index/tags.toon\` and \`topics.toon\`, then read notes by ID.
+### Workflow
 
-See \`.agent/memory/workflow.md\` for complete workflow.`;
+**Before work**:
+1. Use \`/memory-search <tag>\` or \`/memory-query <topic>\` to find relevant knowledge
+2. Read identified notes completely
+
+**During work**:
+- Apply existing knowledge
+- Don't re-analyze what's documented
+
+**After work**:
+1. Create/update memory notes in \`.agent/memory/knowledge/\` or \`.agent/memory/history/\`
+2. Update indexes in \`.agent/memory/index/tags.toon\` and \`topics.toon\`
+
+### Available Commands
+
+- \`/memory-search <tag>\` - Find notes by tag
+- \`/memory-query <topic>\` - Query notes by topic
+- \`/memory-index\` - Show all tags and topics
+- \`/memory-recent [N]\` - Show N most recent notes
+
+### Key Principles
+
+- ✅ Use commands to query (efficient, structured)
+- ✅ Read complete note files (don't skip)
+- ❌ Never use find/grep on memory (use indexes via commands)
+
+Commands contain detailed steps. Just call them when needed.`;
     },
   },
 
@@ -187,6 +239,23 @@ To be managed separately (future: Skills system).
           content: systemReadme,
           format: 'markdown',
         });
+      }
+
+      // 6. Slash commands for memory operations
+      const memoryCommands = ['search', 'query', 'index', 'recent'];
+
+      for (const cmd of memoryCommands) {
+        const cmdPath = path.join(process.cwd(), `templates/commands/memory/${cmd}.md`);
+        try {
+          const cmdContent = await readFile(cmdPath);
+          outputs.push({
+            path: `commands/memory-${cmd}.md`,
+            content: cmdContent,
+            format: 'markdown',
+          });
+        } catch (err) {
+          // Command template not found, skip
+        }
       }
 
       return outputs;
