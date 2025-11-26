@@ -33,3 +33,6 @@ dist-tests/
 # Temporary files
 *.tmp
 .cache/
+
+# External components (excluded from version control)
+external/
