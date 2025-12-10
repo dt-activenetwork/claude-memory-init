@@ -12,12 +12,17 @@ import { builtinPlugins } from './plugins/index.js';
 import * as logger from './utils/logger.js';
 import type { Plugin, PluginCommand } from './plugin/types.js';
 import { createPluginContext } from './plugin/context.js';
+import { initI18n, t } from './i18n/index.js';
+
+// Initialize I18N
+initI18n();
+const L = t();
 
 const program = new Command();
 
 program
-  .name('claude-init')
-  .description('Initialize Claude Agent system in your project')
+  .name(L.cli.name())
+  .description(L.cli.description())
   .version('2.0.0');
 
 /**
@@ -27,9 +32,9 @@ program
  */
 program
   .command('init')
-  .description('Initialize Claude Agent system (interactive)')
-  .option('-f, --force', 'Force re-initialization (overwrite existing files)')
-  .option('-t, --target <path>', 'Target directory (default: current directory)', process.cwd())
+  .description(L.cli.commands.init.description())
+  .option('-f, --force', L.cli.commands.init.forceOption())
+  .option('-t, --target <path>', L.cli.commands.init.targetOption(), process.cwd())
   .action(async (options) => {
     const targetDir = path.resolve(options.target);
     const force = options.force || false;
@@ -49,7 +54,7 @@ program
 
     } catch (error) {
       logger.blank();
-      logger.error('❌ Initialization failed:');
+      logger.error('❌ ' + L.cli.errors.initFailed());
       logger.error(error instanceof Error ? error.message : String(error));
       process.exit(1);
     }
@@ -128,7 +133,7 @@ function registerPluginCommands(registry: PluginRegistry): void {
 
         } catch (error) {
           logger.blank();
-          logger.error(`❌ Command failed:`);
+          logger.error('❌ ' + L.cli.errors.commandFailed());
           logger.error(error instanceof Error ? error.message : String(error));
           process.exit(1);
         }
@@ -160,7 +165,7 @@ async function initializeCLI(): Promise<void> {
 
 // Run CLI
 initializeCLI().catch((error) => {
-  logger.error('Fatal error:');
+  logger.error(L.cli.errors.fatalError());
   logger.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });

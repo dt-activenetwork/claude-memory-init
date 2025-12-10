@@ -125,6 +125,35 @@ export const DEFAULT_GITIGNORE_PATTERNS = [
 ] as const;
 
 /**
+ * Claude standard directory (for commands, skills, settings)
+ */
+export const CLAUDE_DIR = '.claude';
+
+/**
+ * Claude subdirectories
+ */
+export const CLAUDE_SUBDIRS = {
+  /** Slash commands directory */
+  COMMANDS: 'commands',
+  /** Skills directory */
+  SKILLS: 'skills',
+} as const;
+
+/**
+ * Default output routes for resource registration
+ */
+export const DEFAULT_OUTPUT_ROUTES = {
+  /** Where slash commands are written */
+  slashCommands: `${CLAUDE_DIR}/${CLAUDE_SUBDIRS.COMMANDS}`,
+  /** Where skills are written */
+  skills: `${CLAUDE_DIR}/${CLAUDE_SUBDIRS.SKILLS}`,
+  /** Where project data is written */
+  projectData: DEFAULT_AGENT_DIR,
+  /** Where user data is written */
+  userData: USER_MEMORY_DIR,
+} as const;
+
+/**
  * Application version
  */
-export const APP_VERSION = '2.0.0';
+export const APP_VERSION = '2.2.0-alpha';

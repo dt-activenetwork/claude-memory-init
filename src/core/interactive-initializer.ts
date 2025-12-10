@@ -22,6 +22,7 @@ import {
 import { ui } from './ui.js';
 import { ProgressIndicator } from '../prompts/components/progress.js';
 import * as logger from '../utils/logger.js';
+import { t } from '../i18n/index.js';
 import {
   isProjectInitialized,
   getMarkerInfo,
@@ -49,6 +50,13 @@ import {
   appendOrCreateFile,
   findFirstExistingFile,
 } from '../utils/file-ops.js';
+import {
+  HeavyweightPluginManager,
+  separatePluginsByWeight,
+  isHeavyweightPlugin,
+} from './heavyweight-plugin-manager.js';
+import { OutputRouter, DEFAULT_OUTPUT_ROUTES } from './output-router.js';
+import { ResourceWriter, DefaultTemplateLoader } from './resource-writer.js';
 
 /**
  * Project information collected during initialization
@@ -114,13 +122,14 @@ export class InteractiveInitializer {
       // Check if already initialized
       if (!options.force && (await isProjectInitialized(targetDir, baseDir))) {
         const action = await this.handleAlreadyInitialized(targetDir, baseDir);
+        const L = t();
 
         if (action === 'keep') {
-          logger.info('\nKeeping existing setup. No changes made.');
+          logger.info('\n' + L.prompts.keepingSetup());
           return;
         } else if (action === 'reconfigure') {
           // TODO: Implement reconfiguration flow (Phase 5)
-          logger.warning('\nReconfiguration is not yet implemented.');
+          logger.warning('\n' + L.prompts.reconfigNotImpl());
           return;
         }
         // action === 'reinitialize' - continue with normal flow
@@ -133,7 +142,8 @@ export class InteractiveInitializer {
       const selectedPlugins = await this.promptPluginSelection(2);
 
       if (selectedPlugins.length === 0) {
-        logger.warning('\nNo plugins selected. Initialization cancelled.');
+        const L = t();
+        logger.warning('\n' + L.prompts.noPlugins());
         return;
       }
 
@@ -161,7 +171,8 @@ export class InteractiveInitializer {
       );
 
       if (!confirmed) {
-        logger.info('\nInitialization cancelled.');
+        const L = t();
+        logger.info('\n' + L.prompts.cancelled());
         return;
       }
 
@@ -189,35 +200,36 @@ export class InteractiveInitializer {
     targetDir: string,
     baseDir: string
   ): Promise<ReinitializeAction> {
+    const L = t();
     const markerInfo = await getMarkerInfo(targetDir, baseDir);
 
-    logger.warning('\n⚠️  This project is already initialized!\n');
+    logger.warning('\n⚠️  ' + L.prompts.alreadyInitialized.warning() + '\n');
 
     if (markerInfo) {
       if (markerInfo.project_name) {
-        logger.info(`Project: ${markerInfo.project_name}`);
+        logger.info(L.prompts.alreadyInitialized.projectInfo({ name: markerInfo.project_name }));
       }
-      logger.info(`Initialized: ${markerInfo.date}`);
-      logger.info(`Version: ${markerInfo.version}\n`);
+      logger.info(L.prompts.alreadyInitialized.initializedDate({ date: markerInfo.date }));
+      logger.info(L.prompts.alreadyInitialized.versionInfo({ version: markerInfo.version }) + '\n');
     }
 
     const action = await ui.radioList(
-      'What would you like to do?',
+      L.prompts.alreadyInitialized.whatToDo(),
       [
         {
-          name: 'Keep existing setup',
+          name: L.prompts.alreadyInitialized.keepOption(),
           value: 'keep',
-          description: '(no changes)',
+          description: L.prompts.alreadyInitialized.keepDesc(),
         },
         {
-          name: 'Reconfigure',
+          name: L.prompts.alreadyInitialized.reconfigOption(),
           value: 'reconfigure',
-          description: '(modify settings)',
+          description: L.prompts.alreadyInitialized.reconfigDesc(),
         },
         {
-          name: 'Reinitialize',
+          name: L.prompts.alreadyInitialized.reinitOption(),
           value: 'reinitialize',
-          description: '(start from scratch)',
+          description: L.prompts.alreadyInitialized.reinitDesc(),
         },
       ],
       'keep'
@@ -225,7 +237,7 @@ export class InteractiveInitializer {
 
     if (action === 'reinitialize') {
       const confirmReinit = await ui.confirm(
-        'This will overwrite existing files. Are you sure?',
+        L.prompts.alreadyInitialized.confirmOverwrite(),
         false
       );
 
@@ -281,16 +293,17 @@ export class InteractiveInitializer {
    * Prompt for project information (Step 1)
    */
   private async promptProjectInfo(currentStep: number, totalSteps?: number): Promise<ProjectInfo> {
-    const stepLabel = totalSteps ? `Step ${currentStep}/${totalSteps}` : `Step ${currentStep}`;
-    console.log(chalk.cyan(`📋 ${stepLabel}: Project Information`));
+    const L = t();
+    const stepLabel = totalSteps ? `${L.common.step({ current: currentStep, total: totalSteps })}` : `Step ${currentStep}`;
+    console.log(chalk.cyan(`📋 ${stepLabel}: ${L.prompts.projectInfo.stepTitle()}`));
     console.log('─'.repeat(60));
     console.log();
 
-    const name = await ui.input('Project name:', path.basename(process.cwd()));
+    const name = await ui.input(L.prompts.projectInfo.namePrompt(), path.basename(process.cwd()));
 
     const description = await ui.input(
-      'Project description:',
-      'A project with Claude integration'
+      L.prompts.projectInfo.descPrompt(),
+      L.prompts.projectInfo.descDefault()
     );
 
     return { name, description };
@@ -298,29 +311,146 @@ export class InteractiveInitializer {
 
   /**
    * Prompt for plugin selection (Step 2)
+   *
+   * Includes conflict detection - when selecting a plugin, conflicting plugins
+   * are automatically deselected with a warning shown to the user.
    */
   private async promptPluginSelection(currentStep: number, totalSteps?: number): Promise<string[]> {
-    const stepLabel = totalSteps ? `Step ${currentStep}/${totalSteps}` : `Step ${currentStep}`;
+    const L = t();
+    const stepLabel = totalSteps ? `${L.common.step({ current: currentStep, total: totalSteps })}` : `Step ${currentStep}`;
     console.log();
-    console.log(chalk.cyan(`📦 ${stepLabel}: Select Features`));
+    console.log(chalk.cyan(`📦 ${stepLabel}: ${L.prompts.featureSelect.stepTitle()}`));
     console.log('─'.repeat(60));
     console.log();
 
     const availablePlugins = this.pluginRegistry.getAll();
 
-    const selected = await ui.checkboxList(
-      'What features do you want to enable?',
-      availablePlugins.map((plugin) => ({
+    // Build conflict map for quick lookup
+    const conflictMap = this.buildConflictMap(availablePlugins);
+
+    // Show heavyweight plugin notice if any exist
+    const heavyweightPlugins = availablePlugins.filter(p => p.meta.heavyweight);
+    if (heavyweightPlugins.length > 0) {
+      console.log(chalk.yellow(L.prompts.featureSelect.heavyweightNote()));
+      console.log();
+    }
+
+    // Create choices with conflict detection
+    const choices = availablePlugins.map((plugin) => {
+      const isHeavy = plugin.meta.heavyweight;
+      const conflictsWith = conflictMap.get(plugin.meta.name) || [];
+
+      // Build description with heavyweight indicator and conflicts
+      let description = plugin.meta.description;
+      if (isHeavy) {
+        description = `${L.prompts.featureSelect.heavyweightLabel()} ${description}`;
+      }
+      if (conflictsWith.length > 0) {
+        description += chalk.gray(` ${L.prompts.featureSelect.conflictsWith({ plugins: conflictsWith.join(', ') })}`);
+      }
+
+      return {
         name: plugin.meta.name,
         value: plugin.meta.name,
-        description: plugin.meta.description,
+        description,
         checked: plugin.meta.recommended || false,
-      }))
-    );
+      };
+    });
 
-    console.log(chalk.gray(`\nSelected: ${selected.length} feature${selected.length !== 1 ? 's' : ''}`));
+    const selected = await ui.checkboxList(L.prompts.featureSelect.prompt(), choices);
 
-    return selected;
+    // Check for conflicts in selection and resolve them
+    const resolvedSelection = this.resolveConflicts(selected, availablePlugins);
+
+    console.log(chalk.gray('\n' + L.prompts.featureSelect.selectedCount({ count: resolvedSelection.length })));
+
+    // Show heavyweight plugin warning if any selected
+    const selectedHeavyweight = resolvedSelection.filter(name => {
+      const plugin = availablePlugins.find(p => p.meta.name === name);
+      return plugin?.meta.heavyweight;
+    });
+
+    if (selectedHeavyweight.length > 0) {
+      console.log(chalk.yellow('\n' + L.prompts.featureSelect.heavyweightWarning({ plugins: selectedHeavyweight.join(', ') })));
+      console.log(chalk.yellow(L.prompts.featureSelect.heavyweightWarningDetail()));
+    }
+
+    return resolvedSelection;
+  }
+
+  /**
+   * Build a map of plugin conflicts
+   *
+   * @param plugins All available plugins
+   * @returns Map of plugin name -> array of conflicting plugin names
+   */
+  private buildConflictMap(plugins: Plugin[]): Map<string, string[]> {
+    const conflictMap = new Map<string, string[]>();
+
+    for (const plugin of plugins) {
+      const conflicts = plugin.meta.conflicts || [];
+      conflictMap.set(plugin.meta.name, conflicts);
+    }
+
+    return conflictMap;
+  }
+
+  /**
+   * Resolve conflicts in plugin selection
+   *
+   * When conflicts exist, the first selected plugin wins.
+   * Shows warning for removed plugins.
+   *
+   * @param selected Initially selected plugin names
+   * @param plugins All available plugins
+   * @returns Resolved selection with conflicts removed
+   */
+  private resolveConflicts(selected: string[], plugins: Plugin[]): string[] {
+    const resolved: string[] = [];
+    const removed: string[] = [];
+
+    for (const name of selected) {
+      const plugin = plugins.find(p => p.meta.name === name);
+      if (!plugin) continue;
+
+      // Check if this plugin conflicts with any already-resolved plugin
+      let hasConflict = false;
+      for (const resolvedName of resolved) {
+        const resolvedPlugin = plugins.find(p => p.meta.name === resolvedName);
+        if (resolvedPlugin?.meta.conflicts?.includes(name)) {
+          hasConflict = true;
+          removed.push(`${name} (conflicts with ${resolvedName})`);
+          break;
+        }
+      }
+
+      // Check if any already-resolved plugin conflicts with this one
+      if (!hasConflict && plugin.meta.conflicts) {
+        for (const conflictName of plugin.meta.conflicts) {
+          if (resolved.includes(conflictName)) {
+            hasConflict = true;
+            removed.push(`${name} (conflicts with ${conflictName})`);
+            break;
+          }
+        }
+      }
+
+      if (!hasConflict) {
+        resolved.push(name);
+      }
+    }
+
+    // Show warning for removed plugins
+    if (removed.length > 0) {
+      const L = t();
+      console.log();
+      console.log(chalk.yellow(L.prompts.conflictResolution.title()));
+      for (const item of removed) {
+        console.log(chalk.yellow(L.prompts.conflictResolution.removed({ item })));
+      }
+    }
+
+    return resolved;
   }
 
   /**
@@ -350,16 +480,17 @@ export class InteractiveInitializer {
     // Configure all selected plugins
     for (const pluginName of selectedPlugins) {
       const plugin = this.pluginRegistry.get(pluginName);
+      const L = t();
 
       if (!plugin) {
-        logger.warning(`Plugin '${pluginName}' not found. Skipping.`);
+        logger.warning(L.prompts.pluginConfig.notFound({ name: pluginName }));
         continue;
       }
 
       if (pluginsNeedingConfig.includes(pluginName)) {
         // Plugin needs configuration - show step and prompt
         console.log();
-        console.log(chalk.cyan(`📝 Step ${currentStep}/${totalSteps}: Configure ${plugin.meta.name}`));
+        console.log(chalk.cyan(`📝 ${L.common.step({ current: currentStep, total: totalSteps })}: ${L.prompts.pluginConfig.stepTitle({ plugin: plugin.meta.name })}`));
         console.log('─'.repeat(60));
         console.log();
 
@@ -396,16 +527,17 @@ export class InteractiveInitializer {
     pluginConfigs: Map<string, PluginConfig>,
     totalSteps: number
   ): Promise<boolean> {
+    const L = t();
     console.log();
-    console.log(chalk.cyan(`✨ Step ${totalSteps}/${totalSteps}: Summary`));
+    console.log(chalk.cyan(`✨ ${L.common.step({ current: totalSteps, total: totalSteps })}: ${L.prompts.summary.stepTitle()}`));
     console.log('─'.repeat(60));
     console.log();
 
-    console.log(chalk.bold('Project:'), projectInfo.name);
-    console.log(chalk.bold('Location:'), process.cwd());
+    console.log(chalk.bold(L.prompts.summary.project()), projectInfo.name);
+    console.log(chalk.bold(L.prompts.summary.location()), process.cwd());
     console.log();
 
-    console.log(chalk.bold('Features:'));
+    console.log(chalk.bold(L.prompts.summary.features()));
     for (const pluginName of selectedPlugins) {
       const plugin = this.pluginRegistry.get(pluginName);
       if (!plugin) continue;
@@ -413,7 +545,7 @@ export class InteractiveInitializer {
       const config = pluginConfigs.get(pluginName);
       if (!config) continue;
 
-      console.log(chalk.green(`  ✓ ${plugin.meta.name}`));
+      console.log(chalk.green(L.prompts.summary.featureItem({ name: plugin.meta.name })));
 
       // Show plugin-specific summary if available
       if (plugin.configuration?.getSummary) {
@@ -426,11 +558,15 @@ export class InteractiveInitializer {
 
     console.log();
 
-    return await ui.confirm('Proceed with initialization?', true);
+    return await ui.confirm(L.prompts.summary.confirmPrompt(), true);
   }
 
   /**
    * Execute initialization with plugins
+   *
+   * Handles both lightweight and heavyweight plugins:
+   * 1. Lightweight plugins are executed first (standard lifecycle)
+   * 2. Heavyweight plugins are executed last (with file protection/merging)
    */
   private async executeInitialization(
     targetDir: string,
@@ -439,13 +575,29 @@ export class InteractiveInitializer {
     selectedPlugins: string[],
     pluginConfigs: Map<string, PluginConfig>
   ): Promise<void> {
-    const progress = new ProgressIndicator([
+    // Load all plugins
+    const allPlugins = selectedPlugins
+      .map((name) => this.pluginRegistry.get(name))
+      .filter((p): p is Plugin => p !== undefined);
+
+    // Separate lightweight and heavyweight plugins
+    const { lightweight, heavyweight } = separatePluginsByWeight(allPlugins);
+
+    // Determine progress steps based on whether we have heavyweight plugins
+    const progressSteps = [
       'Creating directory structure',
-      'Initializing plugins',
+      'Initializing lightweight plugins',
       'Writing plugin outputs',
       'Generating AGENT.md',
-      'Finalizing setup',
-    ]);
+    ];
+
+    if (heavyweight.length > 0) {
+      progressSteps.push('Initializing heavyweight plugins');
+    }
+
+    progressSteps.push('Finalizing setup');
+
+    const progress = new ProgressIndicator(progressSteps);
 
     progress.start();
 
@@ -473,15 +625,16 @@ export class InteractiveInitializer {
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.OUTPUT));
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.TMP));
 
+      // Create .claude directories for commands and skills
+      await ensureDir(path.join(targetDir, '.claude'));
+      await ensureDir(path.join(targetDir, '.claude', 'commands'));
+      await ensureDir(path.join(targetDir, '.claude', 'skills'));
+
       progress.nextStep();
 
-      // Step 2: Load plugins and create context
-      const plugins = selectedPlugins
-        .map((name) => this.pluginRegistry.get(name))
-        .filter((p): p is Plugin => p !== undefined);
-
-      // Set loaded plugins
-      this.pluginLoader.setLoadedPlugins(plugins);
+      // Step 2: Initialize lightweight plugins (standard lifecycle)
+      // Set loaded plugins (all plugins, so configs are available)
+      this.pluginLoader.setLoadedPlugins(allPlugins);
 
       // Build shared config
       const sharedConfig = {
@@ -500,105 +653,96 @@ export class InteractiveInitializer {
 
       const context = createPluginContext(targetDir, agentDir, sharedConfig);
 
-      // Execute plugin lifecycle hooks
-      await this.pluginLoader.executeHook('beforeInit', context);
-      await this.pluginLoader.executeHook('execute', context);
-      await this.pluginLoader.executeHook('afterInit', context);
+      // Create resource writer for unified output handling
+      const templatesDir = path.join(process.cwd(), 'templates');
+      const outputRouter = new OutputRouter(targetDir);
+      const templateLoader = new DefaultTemplateLoader(templatesDir);
+      const resourceWriter = new ResourceWriter(outputRouter, templateLoader, context.logger);
+
+      // Ensure User Memory structure exists if any plugin uses it
+      await ensureUserMemoryStructure();
+
+      // Execute lifecycle hooks for lightweight plugins only
+      // (heavyweight plugins will be executed after AGENT.md generation)
+      if (lightweight.length > 0) {
+        const lightweightLoader = new PluginLoader(this.pluginRegistry);
+        lightweightLoader.setLoadedPlugins(lightweight);
+
+        await lightweightLoader.executeHook('beforeInit', context);
+        await lightweightLoader.executeHook('execute', context);
+        await lightweightLoader.executeHook('afterInit', context);
+      }
       progress.nextStep();
 
-      // Step 3: Write plugin outputs to .agent/ directory
-      await this.writePluginOutputs(plugins, pluginConfigs, context, agentDir, baseDir);
+      // Step 3: Write all plugin resources (slash commands, skills, data files)
+      await resourceWriter.writeAllResources(lightweight, pluginConfigs, context);
       progress.nextStep();
 
       // Step 4: Generate and write AGENT.md
+      // Note: We use all plugins here so heavyweight plugins can contribute prompts
       await this.generateAgentMd(
         targetDir,
         baseDir,
         projectInfo,
-        plugins,
+        allPlugins,
         pluginConfigs,
         context
       );
       progress.nextStep();
 
-      // Step 5: Finalize
+      // Step 5: Initialize heavyweight plugins (if any)
+      if (heavyweight.length > 0) {
+        await this.executeHeavyweightPlugins(heavyweight, context, targetDir);
+        progress.nextStep();
+      }
+
+      // Step 6: Finalize
       progress.nextStep();
 
-      progress.succeed('✨ Initialization complete!');
+      progress.succeed('Initialization complete!');
     } catch (error) {
-      progress.fail('❌ Initialization failed');
+      progress.fail('Initialization failed');
       throw error;
     }
   }
 
   /**
-   * Write plugin outputs to appropriate directories based on scope
+   * Execute heavyweight plugins
    *
-   * Outputs with scope='user' go to ~/.claude/
-   * Outputs with scope='project' (default) go to .agent/
+   * Heavyweight plugins have their own initialization commands that may
+   * generate files conflicting with our generated files. We handle this by:
+   * 1. Backing up protected files
+   * 2. Running the plugin's init command
+   * 3. Merging the protected files according to plugin's merge strategy
+   *
+   * @param plugins Heavyweight plugins to execute
+   * @param context Plugin context
+   * @param targetDir Target directory
    */
-  private async writePluginOutputs(
+  private async executeHeavyweightPlugins(
     plugins: Plugin[],
-    configs: Map<string, PluginConfig>,
     context: PluginContext,
-    agentDir: string,
-    baseDir: string
+    targetDir: string
   ): Promise<void> {
-    // Track if we need to create User Memory structure
-    let needsUserMemory = false;
+    const heavyManager = new HeavyweightPluginManager(targetDir, this.logger);
 
-    // First pass: check if any outputs need User Memory
     for (const plugin of plugins) {
-      if (plugin.outputs) {
-        const config = configs.get(plugin.meta.name);
-        if (!config) continue;
+      const result = await heavyManager.executeHeavyweightPlugin(plugin, context);
 
-        const outputs = await plugin.outputs.generate(config, context);
-        if (outputs.some(output => output.scope === 'user')) {
-          needsUserMemory = true;
-          break;
+      if (!result.success) {
+        logger.warning(`Heavyweight plugin '${plugin.meta.name}' had issues:`);
+        if (result.error) {
+          logger.warning(`  ${result.error}`);
         }
-      }
-    }
-
-    // Create User Memory structure if needed
-    if (needsUserMemory) {
-      await ensureUserMemoryStructure();
-      context.logger.info(`Initialized: User Memory (~/.claude/)`);
-    }
-
-    // Second pass: write all outputs
-    for (const plugin of plugins) {
-      if (plugin.outputs) {
-        const config = configs.get(plugin.meta.name);
-        if (!config) continue;
-
-        const outputs = await plugin.outputs.generate(config, context);
-
-        for (const output of outputs) {
-          const scope = output.scope || 'project';
-
-          if (scope === 'user') {
-            // Write to User Memory (~/.claude/)
-            await writeScopedFile(output.path, output.content, 'user');
-            context.logger.info(`Created: ~/.claude/${output.path}`);
-          } else {
-            // Write to Project Memory (.agent/)
-            const fullPath = path.join(agentDir, output.path);
-            const dir = path.dirname(fullPath);
-
-            // Ensure directory exists
-            await ensureDir(dir);
-
-            // Write file
-            await writeFile(fullPath, output.content);
-
-            context.logger.info(`Created: ${baseDir}/${output.path}`);
+        for (const mergeResult of result.mergeResults) {
+          if (!mergeResult.success) {
+            logger.warning(`  File merge failed: ${mergeResult.path} - ${mergeResult.error}`);
           }
         }
       }
     }
   }
+
 
   /**
    * Generate and write AGENT.md (or CLAUDE.md)
@@ -652,35 +796,36 @@ export class InteractiveInitializer {
    * Show completion message with next steps
    */
   private showCompletionMessage(targetDir: string, baseDir: string): void {
+    const L = t();
     console.log();
-    console.log(chalk.green.bold('🎉 Initialization complete!'));
+    console.log(chalk.green.bold('🎉 ' + L.prompts.complete.title()));
     console.log('─'.repeat(60));
     console.log();
 
-    console.log(chalk.bold('Files created:'));
-    console.log(chalk.gray(`  ✓ ${AGENT_MD_FILENAME}`));
-    console.log(chalk.gray(`  ✓ ${baseDir}/`));
+    console.log(chalk.bold(L.prompts.complete.filesCreated()));
+    console.log(chalk.gray(L.prompts.complete.agentMd({ filename: AGENT_MD_FILENAME })));
+    console.log(chalk.gray(L.prompts.complete.agentDir({ dirname: baseDir })));
     console.log();
 
     // Show available slash commands
     const allSlashCommands = this.collectAllSlashCommands();
 
     if (allSlashCommands.length > 0) {
-      console.log(chalk.bold('Available slash commands:'));
+      console.log(chalk.bold(L.prompts.complete.slashCommands()));
       for (const cmd of allSlashCommands) {
         const hint = cmd.argumentHint ? ` ${cmd.argumentHint}` : '';
-        console.log(chalk.gray(`  • /${cmd.name}${hint} - ${cmd.description}`));
+        console.log(chalk.gray(L.prompts.complete.commandItem({ name: cmd.name, hint, description: cmd.description })));
       }
       console.log();
     }
 
-    console.log(chalk.bold('Next steps:'));
-    console.log(chalk.gray(`  • Review ${AGENT_MD_FILENAME} and customize as needed`));
-    console.log(chalk.gray('  • Start chatting with Claude in this project'));
+    console.log(chalk.bold(L.prompts.complete.nextSteps()));
+    console.log(chalk.gray(L.prompts.complete.step1({ filename: AGENT_MD_FILENAME })));
+    console.log(chalk.gray(L.prompts.complete.step2()));
     if (allSlashCommands.length > 0) {
-      console.log(chalk.gray('  • Try slash commands like /memory-search or /task-status'));
+      console.log(chalk.gray(L.prompts.complete.step3()));
     }
-    console.log(chalk.gray(`  • Run 'claude-init --help' for more commands`));
+    console.log(chalk.gray(L.prompts.complete.step4()));
     console.log();
   }
 

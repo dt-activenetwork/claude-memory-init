@@ -17,6 +17,7 @@ import type {
   FileOutput,
 } from '../../plugin/types.js';
 import { readFile } from '../../utils/file-ops.js';
+import { t } from '../../i18n/index.js';
 
 /**
  * Prompt Presets Plugin Options
@@ -70,12 +71,13 @@ export const promptPresetsPlugin: Plugin = {
 
     async configure(context: ConfigurationContext): Promise<PluginConfig> {
       const { ui, logger } = context;
+      const L = t();
 
-      logger.info('\n[Prompt Presets]');
+      logger.info('\n' + L.plugins.promptPresets.configTitle());
 
       // Step 1: Select base template (single choice)
       const baseTemplate = await ui.radioList(
-        'Select a base prompt template:',
+        L.plugins.promptPresets.selectBase(),
         BASE_TEMPLATES.map(t => ({
           name: t.name,
           value: t.value,
@@ -84,11 +86,11 @@ export const promptPresetsPlugin: Plugin = {
         'code-review' // Default
       );
 
-      logger.info(`✓ Selected base: ${BASE_TEMPLATES.find(t => t.value === baseTemplate)?.name}\n`);
+      logger.info(L.plugins.promptPresets.selectedBase({ name: BASE_TEMPLATES.find(t => t.value === baseTemplate)?.name || '' }) + '\n');
 
       // Step 2: Select enhancements (multi-select, 0 to N)
       const enhancements = await ui.checkboxList(
-        'Select enhancement modules to include (optional):',
+        L.plugins.promptPresets.selectEnhancements(),
         ENHANCEMENTS.map(e => ({
           name: e.name,
           value: e.value,
@@ -100,9 +102,9 @@ export const promptPresetsPlugin: Plugin = {
       );
 
       if (enhancements.length > 0) {
-        logger.info(`✓ Selected enhancements: ${enhancements.join(', ')}\n`);
+        logger.info(L.plugins.promptPresets.selectedEnhancements({ list: enhancements.join(', ') }) + '\n');
       } else {
-        logger.info('✓ No enhancements selected (minimal preset)\n');
+        logger.info(L.plugins.promptPresets.noEnhancements() + '\n');
       }
 
       const options: PromptPresetsOptions = {
@@ -118,15 +120,16 @@ export const promptPresetsPlugin: Plugin = {
 
     getSummary(config: PluginConfig): string[] {
       const options = config.options as unknown as PromptPresetsOptions;
+      const L = t();
       const lines: string[] = [];
 
       const baseName = BASE_TEMPLATES.find(t => t.value === options.base_template)?.name || options.base_template;
-      lines.push(`Base: ${baseName}`);
+      lines.push(L.plugins.promptPresets.baseLabel({ name: baseName }));
 
       if (options.enhancements.length > 0) {
-        lines.push(`Enhancements (${options.enhancements.length}): ${options.enhancements.join(', ')}`);
+        lines.push(L.plugins.promptPresets.enhancementsLabel({ count: options.enhancements.length, list: options.enhancements.join(', ') }));
       } else {
-        lines.push('Enhancements: none (minimal)');
+        lines.push(L.plugins.promptPresets.enhancementsNone());
       }
 
       return lines;
@@ -136,7 +139,8 @@ export const promptPresetsPlugin: Plugin = {
   hooks: {
     async execute(context: PluginContext): Promise<void> {
       const { logger } = context;
-      logger.info('Prompt preset will be generated');
+      const L = t();
+      logger.info(L.plugins.promptPresets.willGenerate());
     },
   },
 
@@ -212,7 +216,8 @@ export const promptPresetsPlugin: Plugin = {
 
               enhancementTexts.push(enhContent);
             } catch (err) {
-              console.error(`Warning: Enhancement ${enhancement} not found`);
+              const L = t();
+              console.error(L.plugins.promptPresets.enhancementNotFound({ name: enhancement }));
             }
           }
 
@@ -246,7 +251,8 @@ This prompt provides instructions for the selected task type with optional conte
         });
 
       } catch (error) {
-        console.error('Failed to generate preset:', error);
+        const L = t();
+        console.error(L.plugins.promptPresets.generateFailed({ error: error instanceof Error ? error.message : String(error) }));
       }
 
       return outputs;

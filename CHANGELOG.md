@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-alpha] - 2025-11-26
+
+### Heavyweight Plugin Framework
+
+**Major Feature**: Support for external plugins with their own initialization commands and file generation.
+
+#### Added
+
+- **Heavyweight Plugin Framework**:
+  - `HeavyweightPluginManager` class for managing complex plugin initialization
+  - File protection mechanism with automatic backup before external commands
+  - Three merge strategies: `append`, `prepend`, and `custom`
+  - Full rollback support on initialization failure
+  - Command timeout handling (default 2 minutes, configurable)
+
+- **Plugin Type Extensions**:
+  - `meta.heavyweight: boolean` - Mark plugins as heavyweight
+  - `meta.conflicts: string[]` - Declare plugin conflicts
+  - `getHeavyweightConfig()` - Return protected files and init command
+  - `mergeFile()` - Custom merge function for complex file types
+
+- **Claude Flow Plugin** (first heavyweight plugin):
+  - Integration with claude-flow for AI orchestration
+  - Multiple initialization modes: standard, sparc, minimal, skip
+  - Workflow selection (code-review, documentation, testing, etc.)
+  - MCP server configuration support
+  - Swarm mode for multi-agent orchestration
+
+- **Conflict Detection and Resolution**:
+  - Automatic detection of conflicting plugins during selection
+  - Visual conflict indicators in plugin list
+  - First-selected plugin wins resolution strategy
+  - Warning messages for removed conflicting plugins
+
+- **Helper Functions**:
+  - `isHeavyweightPlugin()` - Check if plugin is heavyweight
+  - `separatePluginsByWeight()` - Split plugins into lightweight/heavyweight groups
+
+#### Changed
+
+- **Initialization Order**:
+  - Lightweight plugins execute first (standard lifecycle)
+  - AGENT.md generated after lightweight plugins
+  - Heavyweight plugins execute last (with file protection)
+
+- **Interactive Initializer**:
+  - Shows "[heavyweight]" indicator for heavyweight plugins
+  - Displays conflict information in plugin descriptions
+  - Shows warning when heavyweight plugins are selected
+  - Progress indicator includes heavyweight plugin step
+
+- **Plugin Selection UI**:
+  - Conflict map built from all plugin metadata
+  - Automatic conflict resolution during selection
+  - Clear feedback on removed plugins
+
+#### Technical Details
+
+- **New Files**:
+  - `src/core/heavyweight-plugin-manager.ts` - Core framework
+  - `tests/unit/core/heavyweight-plugin-manager.test.ts` - Unit tests (40+ tests)
+  - `tests/unit/plugins/claude-flow/configurator.test.ts` - Claude Flow tests
+  - `tests/integration/plugins/claude-flow-integration.test.ts` - Integration tests
+  - `tests/bdd/step-definitions/heavyweight-plugins.steps.ts` - BDD steps
+  - `tests/bdd/features/heavyweight-plugins.feature` - BDD scenarios
+
+- **Test Coverage**:
+  - Unit tests: 329 passing
+  - BDD scenarios: 49 passing
+  - Full coverage of backup, execute, merge, and restore flows
+
+#### Documentation
+
+- `docs/HEAVYWEIGHT_PLUGINS.md` - Complete design document
+- `docs/CLAUDE_FLOW_QUICK_START.md` - Claude Flow setup guide
+- Updated `README.md` with heavyweight plugins section
+- Updated `docs/PLUGIN_ARCHITECTURE_REFACTOR.md` with v2.2 section
+- Updated `docs/USER_GUIDE.md` with heavyweight plugins usage
+
+---
+
 ## [2.1.0-beta] - 2025-11-26
 
 ### 🎉 Two-Layer Memory Architecture

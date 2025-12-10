@@ -27,6 +27,7 @@ import {
   USER_MEMORY_FILES,
   PROJECT_MEMORY_FILES,
 } from '../../constants.js';
+import { t } from '../../i18n/index.js';
 
 // ============================================================================
 // Types
@@ -245,22 +246,24 @@ async function detectStaticInfo(): Promise<{ timezone: string; language: string 
  * Get package manager descriptions
  */
 function getPythonManagerDescription(pm: string): string {
+  const L = t();
   const descriptions: Record<string, string> = {
-    'pip': 'Standard Python package installer',
-    'uv': '⚡ Ultra-fast Python package installer (recommended)',
-    'poetry': '📦 Dependency management and packaging',
-    'pipenv': '🔧 Virtual environments and dependencies',
-    'conda': '🐍 Package and environment management',
+    'pip': L.plugins.systemDetector.pmDesc.pip(),
+    'uv': L.plugins.systemDetector.pmDesc.uv(),
+    'poetry': L.plugins.systemDetector.pmDesc.poetry(),
+    'pipenv': L.plugins.systemDetector.pmDesc.pipenv(),
+    'conda': L.plugins.systemDetector.pmDesc.conda(),
   };
   return descriptions[pm] || '';
 }
 
 function getNodeManagerDescription(pm: string): string {
+  const L = t();
   const descriptions: Record<string, string> = {
-    'npm': '📦 Standard Node.js package manager',
-    'pnpm': '⚡ Fast, disk space efficient (recommended)',
-    'yarn': '🧶 Fast, reliable, secure dependency manager',
-    'bun': '🔥 All-in-one JavaScript runtime and toolkit',
+    'npm': L.plugins.systemDetector.pmDesc.npm(),
+    'pnpm': L.plugins.systemDetector.pmDesc.pnpm(),
+    'yarn': L.plugins.systemDetector.pmDesc.yarn(),
+    'bun': L.plugins.systemDetector.pmDesc.bun(),
   };
   return descriptions[pm] || '';
 }
@@ -283,8 +286,9 @@ export const systemDetectorPlugin: Plugin = {
 
     async configure(context: ConfigurationContext): Promise<PluginConfig> {
       const { ui, logger, projectRoot } = context;
+      const L = t();
 
-      logger.info('\n[System Configuration]');
+      logger.info('\n' + L.plugins.systemDetector.configTitle());
 
       // 1. Load or create user preferences
       let userPrefs = await loadUserPreferences();
@@ -292,41 +296,41 @@ export const systemDetectorPlugin: Plugin = {
 
       if (userPrefs) {
         // Show existing preferences
-        logger.info('✓ Found user preferences (~/.claude/)');
-        logger.info(`  OS: ${userPrefs.os.name} (${userPrefs.os.type})`);
+        logger.info(L.plugins.systemDetector.foundPrefs());
+        logger.info(L.plugins.systemDetector.osInfo({ name: userPrefs.os.name, type: userPrefs.os.type }));
         if (userPrefs.preferred_managers.python) {
-          logger.info(`  Preferred Python manager: ${userPrefs.preferred_managers.python}`);
+          logger.info(L.plugins.systemDetector.pythonManager({ manager: userPrefs.preferred_managers.python }));
         }
         if (userPrefs.preferred_managers.node) {
-          logger.info(`  Preferred Node manager: ${userPrefs.preferred_managers.node}`);
+          logger.info(L.plugins.systemDetector.nodeManager({ manager: userPrefs.preferred_managers.node }));
         }
       } else {
-        logger.info('First time setup - detecting system...\n');
+        logger.info(L.plugins.systemDetector.firstTimeSetup() + '\n');
 
         // Detect OS
         const osInfo = await detectOS();
-        logger.info(`✓ OS: ${osInfo.name} (${osInfo.type})`);
-        logger.info(`  System package manager: ${osInfo.package_manager}`);
+        logger.info(L.plugins.systemDetector.osDetected({ name: osInfo.name, type: osInfo.type }));
+        logger.info(L.plugins.systemDetector.systemPm({ pm: osInfo.package_manager }));
 
         // Detect locale
         const localeInfo = await detectStaticInfo();
-        logger.info(`✓ Timezone: ${localeInfo.timezone}`);
-        logger.info(`✓ Language: ${localeInfo.language}`);
+        logger.info(L.plugins.systemDetector.timezone({ tz: localeInfo.timezone }));
+        logger.info(L.plugins.systemDetector.language({ lang: localeInfo.language }));
 
         // Detect and select Python manager
         const pythonInfo = await detectPython();
         let preferredPythonManager: string | undefined;
 
         if (pythonInfo.version && pythonInfo.available_managers.length > 0) {
-          logger.info(`\n✓ Python detected: ${pythonInfo.version}`);
-          logger.info(`  Available managers: ${pythonInfo.available_managers.join(', ')}`);
+          logger.info('\n' + L.plugins.systemDetector.pythonDetected({ version: pythonInfo.version }));
+          logger.info(L.plugins.systemDetector.availableManagers({ list: pythonInfo.available_managers.join(', ') }));
 
           if (pythonInfo.available_managers.length === 1) {
             preferredPythonManager = pythonInfo.available_managers[0];
-            logger.info(`  → Using: ${preferredPythonManager}`);
+            logger.info(L.plugins.systemDetector.using({ manager: preferredPythonManager }));
           } else {
             preferredPythonManager = await ui.radioList(
-              'Select your preferred Python package manager:',
+              L.plugins.systemDetector.selectPython(),
               pythonInfo.available_managers.map(pm => ({
                 name: pm,
                 value: pm,
@@ -334,7 +338,7 @@ export const systemDetectorPlugin: Plugin = {
               })),
               pythonInfo.available_managers[0]
             );
-            logger.info(`  → Selected: ${preferredPythonManager}`);
+            logger.info(L.plugins.systemDetector.pythonSelected({ manager: preferredPythonManager }));
           }
         }
 
@@ -343,15 +347,15 @@ export const systemDetectorPlugin: Plugin = {
         let preferredNodeManager: string | undefined;
 
         if (nodeInfo.version && nodeInfo.available_managers.length > 0) {
-          logger.info(`\n✓ Node.js detected: ${nodeInfo.version}`);
-          logger.info(`  Available managers: ${nodeInfo.available_managers.join(', ')}`);
+          logger.info('\n' + L.plugins.systemDetector.nodeDetected({ version: nodeInfo.version }));
+          logger.info(L.plugins.systemDetector.availableManagers({ list: nodeInfo.available_managers.join(', ') }));
 
           if (nodeInfo.available_managers.length === 1) {
             preferredNodeManager = nodeInfo.available_managers[0];
-            logger.info(`  → Using: ${preferredNodeManager}`);
+            logger.info(L.plugins.systemDetector.using({ manager: preferredNodeManager }));
           } else {
             preferredNodeManager = await ui.radioList(
-              'Select your preferred Node.js package manager:',
+              L.plugins.systemDetector.selectNode(),
               nodeInfo.available_managers.map(pm => ({
                 name: pm,
                 value: pm,
@@ -359,7 +363,7 @@ export const systemDetectorPlugin: Plugin = {
               })),
               nodeInfo.available_managers[0]
             );
-            logger.info(`  → Selected: ${preferredNodeManager}`);
+            logger.info(L.plugins.systemDetector.nodeSelected({ manager: preferredNodeManager }));
           }
         }
 
@@ -382,7 +386,7 @@ export const systemDetectorPlugin: Plugin = {
       }
 
       // 2. Configure project-specific settings
-      logger.info('\n[Project Configuration]');
+      logger.info('\n' + L.plugins.systemDetector.projectConfig());
 
       // Default to user preferences
       let projectPythonManager = userPrefs.preferred_managers.python;
@@ -391,7 +395,7 @@ export const systemDetectorPlugin: Plugin = {
       // Ask if user wants to use different managers for this project
       if (projectPythonManager || projectNodeManager) {
         const usePreferred = await ui.confirm(
-          `Use your preferred managers for this project?${projectPythonManager ? ` (Python: ${projectPythonManager})` : ''}${projectNodeManager ? ` (Node: ${projectNodeManager})` : ''}`,
+          `${L.plugins.systemDetector.usePreferred()}${projectPythonManager ? ` (Python: ${projectPythonManager})` : ''}${projectNodeManager ? ` (Node: ${projectNodeManager})` : ''}`,
           true
         );
 
@@ -401,7 +405,7 @@ export const systemDetectorPlugin: Plugin = {
             const pythonInfo = await detectPython();
             if (pythonInfo.available_managers.length > 1) {
               projectPythonManager = await ui.radioList(
-                'Select Python package manager for this project:',
+                L.plugins.systemDetector.selectProjectPython(),
                 pythonInfo.available_managers.map(pm => ({
                   name: pm,
                   value: pm,
@@ -416,7 +420,7 @@ export const systemDetectorPlugin: Plugin = {
             const nodeInfo = await detectNode(projectRoot);
             if (nodeInfo.available_managers.length > 1) {
               projectNodeManager = await ui.radioList(
-                'Select Node.js package manager for this project:',
+                L.plugins.systemDetector.selectProjectNode(),
                 nodeInfo.available_managers.map(pm => ({
                   name: pm,
                   value: pm,
@@ -438,8 +442,8 @@ export const systemDetectorPlugin: Plugin = {
         configured_at: new Date().toISOString(),
       };
 
-      logger.info(`  Python: ${projectPythonManager || '(not configured)'}`);
-      logger.info(`  Node: ${projectNodeManager || '(not configured)'}`);
+      logger.info(L.plugins.systemDetector.pythonConfig({ manager: projectPythonManager || L.plugins.systemDetector.notConfigured() }));
+      logger.info(L.plugins.systemDetector.nodeConfig({ manager: projectNodeManager || L.plugins.systemDetector.notConfigured() }));
 
       // Build combined options
       const options: SystemDetectorOptions = {
@@ -479,6 +483,7 @@ export const systemDetectorPlugin: Plugin = {
   hooks: {
     async execute(context: PluginContext): Promise<void> {
       const { logger } = context;
+      const L = t();
       const config = context.config.plugins.get('system-detector');
 
       if (!config) return;
@@ -486,9 +491,9 @@ export const systemDetectorPlugin: Plugin = {
       const options = config.options as unknown as SystemDetectorOptions & { _isFirstTime?: boolean };
 
       if (options._isFirstTime && options.userPreferences) {
-        logger.info('User preferences saved to ~/.claude/system/preferences.toon');
+        logger.info(L.plugins.systemDetector.userPrefsSaved());
       }
-      logger.info('Project configuration saved to .agent/system/config.toon');
+      logger.info(L.plugins.systemDetector.projectConfigSaved());
     },
   },
 

@@ -6,6 +6,7 @@
  */
 
 import ora, { type Ora } from 'ora';
+import { t } from '../../i18n/index.js';
 
 /**
  * Progress indicator for multi-step processes
@@ -79,7 +80,8 @@ export class ProgressIndicator {
    * @param message - Optional custom success message
    */
   succeed(message?: string): void {
-    this.spinner.succeed(message ?? 'Complete');
+    const L = t();
+    this.spinner.succeed(message ?? L.prompts.progress.complete());
   }
 
   /**
@@ -88,7 +90,8 @@ export class ProgressIndicator {
    * @param message - Optional custom failure message
    */
   fail(message?: string): void {
-    this.spinner.fail(message ?? 'Failed');
+    const L = t();
+    this.spinner.fail(message ?? L.prompts.progress.failed());
   }
 
   /**
@@ -97,7 +100,8 @@ export class ProgressIndicator {
    * @param message - Optional custom warning message
    */
   warn(message?: string): void {
-    this.spinner.warn(message ?? 'Warning');
+    const L = t();
+    this.spinner.warn(message ?? L.prompts.progress.warning());
   }
 
   /**
@@ -106,7 +110,8 @@ export class ProgressIndicator {
    * @param message - Optional custom info message
    */
   info(message?: string): void {
-    this.spinner.info(message ?? 'Info');
+    const L = t();
+    this.spinner.info(message ?? L.prompts.progress.info());
   }
 
   /**

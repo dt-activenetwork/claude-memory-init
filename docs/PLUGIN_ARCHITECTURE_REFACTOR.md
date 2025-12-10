@@ -1,5 +1,10 @@
 # 插件化架构重构方案
 
+> **状态**: ✅ **已实现** (v2.0.0+)
+>
+> 本文档为设计参考文档，插件系统已在 v2.0.0 实现，并在 v2.2.0-alpha 中扩展支持 Heavyweight 插件。
+> 代码位于 `src/plugin/` 和 `src/plugins/` 目录。
+
 ## 问题分析
 
 ### 当前架构的耦合问题
@@ -1096,6 +1101,160 @@ claude-memory-init/
 
 ---
 
-**版本**: Draft 1.0
-**日期**: 2025-01-18
-**状态**: 待评审
+## Heavyweight Plugins (v2.2+)
+
+### Overview
+
+Heavyweight plugins extend the plugin system to support external tools that have their own initialization commands. These plugins require special handling for file conflicts and merging.
+
+### Design Goals
+
+1. **Seamless Integration**: External tools should integrate without breaking existing functionality
+2. **File Protection**: Automatically protect files that may be overwritten
+3. **Smart Merging**: Support multiple merge strategies for different file types
+4. **Rollback Support**: Restore original state if initialization fails
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Initialization Flow                          │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. Lightweight Plugins    2. Generate AGENT.md   3. Heavyweight │
+│     (standard lifecycle)      (all plugins)          Plugins     │
+│                                                                  │
+│  ┌───────────────────┐    ┌───────────────────┐  ┌────────────┐ │
+│  │ beforeInit        │    │ Template +        │  │ Backup     │ │
+│  │ execute           │───►│ Plugin Prompts    │──►│ Execute    │ │
+│  │ afterInit         │    │ → AGENT.md        │  │ Merge      │ │
+│  └───────────────────┘    └───────────────────┘  └────────────┘ │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation
+
+#### HeavyweightPluginManager
+
+The `HeavyweightPluginManager` class handles:
+- Getting heavyweight config from plugins
+- Backing up protected files
+- Executing init commands
+- Merging files according to strategy
+- Restoring backups on failure
+
+```typescript
+class HeavyweightPluginManager {
+  async executeHeavyweightPlugin(
+    plugin: Plugin,
+    context: PluginContext
+  ): Promise<HeavyweightExecutionResult>
+
+  private async backupProtectedFiles(files: ProtectedFile[]): Promise<void>
+  private async executeCommand(config: HeavyweightPluginConfig): Promise<{ output: string; exitCode: number }>
+  private async mergeProtectedFile(plugin: Plugin, file: ProtectedFile, context: PluginContext): Promise<FileMergeResult>
+  async restoreBackups(): Promise<void>
+}
+```
+
+#### Type Extensions
+
+```typescript
+// Plugin metadata extensions
+interface PluginMeta {
+  heavyweight?: boolean;      // Mark as heavyweight
+  conflicts?: string[];       // Conflicting plugin names
+}
+
+// Configuration for heavyweight plugins
+interface HeavyweightPluginConfig {
+  protectedFiles: ProtectedFile[];
+  initCommand: string | null;
+  workingDirectory?: string;
+  timeout?: number;
+  env?: Record<string, string>;
+}
+
+// Protected file definition
+interface ProtectedFile {
+  path: string;
+  mergeStrategy: 'append' | 'prepend' | 'custom';
+}
+
+// Plugin methods
+interface Plugin {
+  getHeavyweightConfig?: (context: PluginContext) => Promise<HeavyweightPluginConfig>;
+  mergeFile?: (filePath: string, ourContent: string | null, theirContent: string, context: PluginContext) => Promise<string>;
+}
+```
+
+#### Merge Strategies
+
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| `append` | Our content + separator + their content | Documentation files |
+| `prepend` | Their content + separator + our content | Priority instructions |
+| `custom` | Plugin implements `mergeFile()` | Structured data (JSON, TOON) |
+
+### Conflict Detection
+
+Plugins can declare conflicts with other plugins:
+
+```typescript
+meta: {
+  name: 'claude-flow',
+  conflicts: ['task-system'],  // Cannot use both
+}
+```
+
+During plugin selection:
+1. Build conflict map from all plugins
+2. When user selects plugins, check for conflicts
+3. Automatically remove conflicting plugins with warning
+
+### Example: Claude Flow Plugin
+
+```typescript
+const claudeFlowPlugin: Plugin = {
+  meta: {
+    name: 'claude-flow',
+    commandName: 'flow',
+    version: '1.0.0',
+    description: 'Claude Flow integration',
+    heavyweight: true,
+    conflicts: ['task-system'],
+  },
+
+  getHeavyweightConfig: async (context) => ({
+    protectedFiles: [
+      { path: 'CLAUDE.md', mergeStrategy: 'append' },
+      { path: '.agent/config.toon', mergeStrategy: 'custom' },
+    ],
+    initCommand: 'pnpm dlx claude-flow@alpha init',
+    timeout: 120000,
+  }),
+
+  mergeFile: async (filePath, ourContent, theirContent, context) => {
+    if (filePath === '.agent/config.toon') {
+      return `# Original\n${ourContent}\n\n# Claude Flow\n${theirContent}`;
+    }
+    return `${ourContent}\n\n---\n\n${theirContent}`;
+  },
+};
+```
+
+### Testing
+
+Test coverage for heavyweight plugins includes:
+- Unit tests: `tests/unit/core/heavyweight-plugin-manager.test.ts`
+- Integration tests: `tests/integration/plugins/claude-flow-integration.test.ts`
+- BDD scenarios: `tests/bdd/features/heavyweight-plugins.feature`
+
+See [Heavyweight Plugins Design](./HEAVYWEIGHT_PLUGINS.md) for complete documentation.
+
+---
+
+**版本**: Draft 2.0 (v2.2 updates)
+**日期**: 2025-11-26
+**状态**: 已实现

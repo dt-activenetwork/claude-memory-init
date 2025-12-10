@@ -13,8 +13,7 @@ import type {
   FileOutput,
   SlashCommand,
 } from '../../plugin/types.js';
-import { readFile } from '../../utils/file-ops.js';
-import * as path from 'path';
+import { t } from '../../i18n/index.js';
 
 /**
  * Task System Plugin Options
@@ -42,47 +41,47 @@ export const taskSystemPlugin: Plugin = {
   slashCommands: [
     {
       name: 'task-create',
-      description: 'Create task with dedicated prompt',
+      description: t().plugins.taskSystem.commands.createDesc(),
       argumentHint: '[task-name]',
-      templateFile: 'task/create.md',
+      templatePath: 'commands/task/create.md',
     },
     {
       name: 'task-start',
-      description: 'Start executing a task',
+      description: t().plugins.taskSystem.commands.startDesc(),
       argumentHint: '[task-id]',
-      templateFile: 'task/start.md',
+      templatePath: 'commands/task/start.md',
     },
     {
       name: 'task-pause',
-      description: 'Pause current task (save state)',
-      templateFile: 'task/pause.md',
+      description: t().plugins.taskSystem.commands.pauseDesc(),
+      templatePath: 'commands/task/pause.md',
     },
     {
       name: 'task-resume',
-      description: 'Resume a paused task',
+      description: t().plugins.taskSystem.commands.resumeDesc(),
       argumentHint: '[task-id]',
-      templateFile: 'task/resume.md',
+      templatePath: 'commands/task/resume.md',
     },
     {
       name: 'task-status',
-      description: 'Show current task state',
-      templateFile: 'task/status.md',
+      description: t().plugins.taskSystem.commands.statusDesc(),
+      templatePath: 'commands/task/status.md',
     },
     {
       name: 'task-list',
-      description: 'List all tasks',
+      description: t().plugins.taskSystem.commands.listDesc(),
       argumentHint: '[filter]',
-      templateFile: 'task/list.md',
+      templatePath: 'commands/task/list.md',
     },
     {
       name: 'task-incomplete',
-      description: 'List unfinished tasks',
-      templateFile: 'task/incomplete.md',
+      description: t().plugins.taskSystem.commands.incompleteDesc(),
+      templatePath: 'commands/task/incomplete.md',
     },
     {
       name: 'task-complete',
-      description: 'Mark task as complete',
-      templateFile: 'task/complete.md',
+      description: t().plugins.taskSystem.commands.completeDesc(),
+      templatePath: 'commands/task/complete.md',
     },
   ],
 
@@ -91,14 +90,15 @@ export const taskSystemPlugin: Plugin = {
 
     async configure(context: ConfigurationContext): Promise<PluginConfig> {
       const { ui } = context;
+      const L = t();
 
       const enableTracking = await ui.confirm(
-        'Enable task state tracking (current.toon)?',
+        L.plugins.taskSystem.enableTracking(),
         true
       );
 
       const enableOutput = await ui.confirm(
-        'Enable task output directory (.agent/tasks/output/)?',
+        L.plugins.taskSystem.enableOutput(),
         true
       );
 
@@ -115,14 +115,15 @@ export const taskSystemPlugin: Plugin = {
 
     getSummary(config: PluginConfig): string[] {
       const options = config.options as unknown as TaskSystemOptions;
+      const L = t();
       const lines: string[] = [];
 
       if (options.enable_tracking) {
-        lines.push('Task tracking: enabled');
+        lines.push(L.plugins.taskSystem.trackingEnabled());
       }
 
       if (options.enable_output) {
-        lines.push('Output directory: enabled');
+        lines.push(L.plugins.taskSystem.outputEnabled());
       }
 
       return lines;
@@ -131,7 +132,8 @@ export const taskSystemPlugin: Plugin = {
 
   hooks: {
     async execute(context: PluginContext): Promise<void> {
-      context.logger.info('Task system initialized');
+      const L = t();
+      context.logger.info(L.plugins.taskSystem.initialized());
     },
   },
 
@@ -285,24 +287,7 @@ Use for intermediate files, scratch work, etc.
         format: 'markdown',
       });
 
-      // 5. Slash commands for task operations
-      const taskCommands = ['create', 'start', 'pause', 'resume', 'status', 'list', 'incomplete', 'complete'];
-
-      for (const cmd of taskCommands) {
-        const cmdPath = path.join(process.cwd(), `templates/commands/task/${cmd}.md`);
-        try {
-          const cmdContent = await readFile(cmdPath);
-          outputs.push({
-            path: `commands/task-${cmd}.md`,
-            content: cmdContent,
-            format: 'markdown',
-          });
-        } catch (err) {
-          // Command template not found, skip
-        }
-      }
-
-      // 6. Create directories for task structure
+      // 5. Create directories for task structure
       outputs.push({
         path: 'tasks/prompts/README.md',
         content: `# Task Prompts

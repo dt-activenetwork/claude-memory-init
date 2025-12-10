@@ -2,31 +2,33 @@
 
 Interactive CLI tool for setting up Claude in your projects with a plugin-based architecture.
 
-[![Version](https://img.shields.io/badge/version-2.1.0--beta-blue)](https://github.com/dt-activenetwork/claude-memory-init)
+[![Version](https://img.shields.io/badge/version-2.2.0--alpha-blue)](https://github.com/dt-activenetwork/claude-memory-init)
 [![License](https://img.shields.io/badge/license-MIT-green)](./LICENSE)
 
 ---
 
-## ✨ What's New in v2.1
+## ✨ What's New in v2.2
 
-🎉 **Two-Layer Memory Architecture**: User Memory vs Project Memory
+🎉 **Heavyweight Plugin Framework & I18N Support**
 
-- **👤 User Memory**: Store preferences in `~/.claude/` (shared across projects)
-- **📁 Project Memory**: Project-specific config in `.agent/`
-- **🔄 Smart Reuse**: Skip re-configuration when initializing new projects
-- **➕ Append Mode**: Preserve existing AGENT.md/CLAUDE.md content
-- **🧪 UI Facade Pattern**: Solved Cucumber BDD testing mock issues
+- **🔧 Heavyweight Plugins**: Support for external plugins with their own init commands (e.g., Claude Flow)
+- **🔀 Smart File Merging**: Backup, merge, and rollback protected files during plugin initialization
+- **⚠️ Conflict Detection**: Automatic detection and resolution of plugin conflicts
+- **🌍 I18N Support**: Full internationalization with English and Chinese
+- **📦 New Plugins**: Core, Claude Flow, PMA-GH (GitHub workflow)
+- **🎯 Unified Resource Registration**: Declarative slash commands and skills
 
-### Previous Updates (v2.0)
+### Previous Updates
 
-- **🔌 Plugin System**: Modular architecture with 5 composable plugins
-- **💬 Interactive CLI**: Conversational setup flow (no parameters to remember)
-- **📊 TOON Format**: Token-efficient data format (30-60% fewer tokens than JSON)
-- **🎯 Minimal Commands**: Clean, simple CLI with dynamic plugin commands
-- **🔍 Smart Detection**: Multi-package-manager support with user preferences
-- **💾 Persistent Config**: One-time setup, saved preferences
+**v2.1** - Two-Layer Memory Architecture
+- User Memory (`~/.claude/`) vs Project Memory (`.agent/`)
+- Smart reuse across projects, append mode for existing files
 
-> **Status**: v2.1 beta. Testing: 196 unit tests + 32 BDD scenarios passing.
+**v2.0** - Plugin System
+- Modular architecture with composable plugins
+- Interactive CLI, TOON format, smart detection
+
+> **Status**: v2.2.0-alpha. Testing: 399 unit tests + 49 BDD scenarios passing.
 
 ---
 
@@ -77,13 +79,35 @@ Claude Init uses a plugin-based architecture. Choose the features you need:
 
 ### Available Plugins
 
+#### Lightweight Plugins
+
 | Plugin | Description | Features |
 |--------|-------------|----------|
-| **System Detection** | Auto-detect environment | Two-layer memory (user/project), smart reuse across projects |
-| **Memory System** | Knowledge persistence | Semantic, episodic, procedural memory with TOON indexes |
+| **Core** | Essential commands | Always enabled, provides `/session-init` |
+| **System Detection** | Auto-detect environment | Two-layer memory (user/project), smart reuse |
+| **Memory System** | Knowledge persistence | Knowledge, history memory with TOON indexes |
 | **Git Integration** | Git automation | Auto-commit, remote sync, gitignore management |
 | **Task System** | Task workflows | State tracking, output management, workflows |
-| **Prompt Presets** | Custom prompts directory | User-defined templates |
+| **Prompt Presets** | Custom prompts | User-defined templates |
+| **PMA-GH** | GitHub workflow | Issue tracking, PR creation, `/pma-issue`, `/pma-pr` |
+
+#### Heavyweight Plugins (v2.2+)
+
+Heavyweight plugins have their own initialization commands and may generate files that need merging.
+
+| Plugin | Description | Init Command |
+|--------|-------------|--------------|
+| **Claude Flow** | AI orchestration with multi-agent support | `pnpm dlx claude-flow@alpha init` |
+
+**Key Features:**
+- **File Protection**: Backs up protected files before plugin initialization
+- **Smart Merging**: Three merge strategies (append, prepend, custom)
+- **Conflict Detection**: Automatically detects and resolves plugin conflicts (e.g., Claude Flow conflicts with Task System)
+- **Rollback Support**: Restores backups if initialization fails
+
+See [Heavyweight Plugins Design](./docs/HEAVYWEIGHT_PLUGINS.md) for details.
+
+---
 
 ### Key Features
 
@@ -207,18 +231,20 @@ Language is automatically detected from your system locale (`LANG`, `LANGUAGE`, 
 
 ### Design Documents
 
-Complete design documentation for v2.0 refactor:
+Complete design documentation for v2.0+ refactor:
 
 - **[Design Overview](./docs/README.md)** - Start here
 - **[Refactor Summary](./docs/REFACTOR_SUMMARY.md)** - Complete refactor plan
 - **[Plugin Architecture](./docs/PLUGIN_ARCHITECTURE_REFACTOR.md)** - Plugin system design
+- **[Heavyweight Plugins](./docs/HEAVYWEIGHT_PLUGINS.md)** - Heavyweight plugin framework
+- **[Claude Flow Quick Start](./docs/CLAUDE_FLOW_QUICK_START.md)** - Claude Flow integration guide
 - **[Interactive CLI](./docs/INTERACTIVE_CLI_DESIGN.md)** - Interactive flow design
 - **[CLI Commands](./docs/CLI_COMMANDS_DESIGN.md)** - Command structure
 - **[i18n Design](./docs/I18N_DESIGN.md)** - Internationalization
 
 ### User Guides
 
-> **Note**: User guides will be updated after v2.0 implementation
+- **[User Guide](./docs/USER_GUIDE.md)** - Complete usage documentation
 
 ---
 
@@ -227,25 +253,33 @@ Complete design documentation for v2.0 refactor:
 ```
 claude-memory-init/
 ├── src/
-│   ├── core/              # Core framework
-│   │   ├── initializer.ts
-│   │   └── interactive-initializer.ts
-│   ├── plugin/            # Plugin system
+│   ├── core/                    # Core framework
+│   │   ├── interactive-initializer.ts
+│   │   ├── heavyweight-plugin-manager.ts
+│   │   ├── output-router.ts
+│   │   └── resource-writer.ts
+│   ├── plugin/                  # Plugin system
 │   │   ├── types.ts
 │   │   ├── loader.ts
 │   │   └── registry.ts
-│   ├── plugins/           # Built-in plugins
+│   ├── plugins/                 # Built-in plugins
+│   │   ├── core/                # Essential commands
+│   │   ├── system-detector/
 │   │   ├── memory-system/
-│   │   ├── prompt-presets/
 │   │   ├── git/
-│   │   └── system-detector/
-│   ├── i18n/              # Internationalization
-│   │   └── locales/
-│   │       ├── en/
-│   │       └── zh/
-│   └── cli.ts             # CLI entry point
-├── docs/                  # Design documentation
-├── mem/                   # Memory template (submodule)
+│   │   ├── task-system/
+│   │   ├── prompt-presets/
+│   │   ├── claude-flow/         # Heavyweight
+│   │   └── pma-gh/              # GitHub workflow
+│   ├── i18n/                    # Internationalization
+│   │   ├── en/
+│   │   └── zh/
+│   └── cli.ts                   # CLI entry point
+├── templates/                   # Template files
+│   ├── commands/                # Slash command templates
+│   └── skills/                  # Skill templates
+├── docs/                        # Documentation
+├── mem/                         # Memory template (submodule)
 └── package.json
 ```
 
@@ -280,36 +314,35 @@ pnpm test
 - **Progress Display**: Ora v8
 - **Colors**: Chalk v5
 - **Git Operations**: Simple-git v3
-- **Config Format**: YAML v2
-- **i18n**: i18next v23
+- **Data Format**: TOON (@toon-format/toon)
+- **i18n**: typesafe-i18n v5
 - **Type System**: TypeScript v5
 
 ---
 
 ## 🗺️ Roadmap
 
-### v2.0 (Current)
+### v2.2 (Current)
 
-**Status**: Core features implemented, testing complete
+**Status**: Alpha - Heavyweight plugins and I18N implemented
 
 **Key Features**:
-- ✅ Plugin-based architecture
-- ✅ Interactive CLI
-- ✅ TOON format support
-- ✅ 5 built-in plugins
-- ✅ Comprehensive test suite (100/100 passed)
+- ✅ Heavyweight Plugin Framework
+- ✅ I18N support (English, Chinese)
+- ✅ Claude Flow integration
+- ✅ PMA-GH plugin (GitHub workflow)
+- ✅ Unified resource registration
+- ✅ 399 unit tests + 49 BDD scenarios
 
 **Remaining**:
-- ⏳ i18n support (planned)
-- ⏳ `memory system-add` command (planned)
+- ⏳ `memory system-add` command
+- ⏳ Additional language support
 
-See [Design Documents](./docs/) for complete details.
+### Previous Versions
 
-### v1.x (Deprecated)
-
-**Status**: No longer maintained
-
-The v1.x codebase has been replaced by v2.0. See CHANGELOG.md for migration notes.
+- **v2.1**: Two-layer memory architecture
+- **v2.0**: Plugin system, interactive CLI
+- **v1.x**: Deprecated, no longer maintained
 
 ---
 
@@ -374,5 +407,5 @@ MIT License - See [LICENSE](./LICENSE) for details.
 
 ---
 
-**Current Version**: 2.0.0-alpha
-**Last Updated**: 2025-11-26
+**Current Version**: 2.2.0-alpha
+**Last Updated**: 2025-12-10

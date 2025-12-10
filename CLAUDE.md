@@ -3,7 +3,7 @@
 A CLI tool for initializing Claude Agent systems in projects with a plugin-based architecture.
 
 **Repository:** https://github.com/dt-activenetwork/claude-memory-init
-**Version:** 2.1.0-beta
+**Version:** 2.2.0-alpha
 
 ## Quick Reference
 
@@ -22,15 +22,33 @@ claude-init <plugin-command> <subcommand>
 
 ### Plugin-Based System
 
-The tool uses a modular plugin architecture with 5 built-in plugins:
+The tool uses a modular plugin architecture with built-in plugins:
+
+#### Lightweight Plugins
 
 | Plugin | Command Name | Purpose |
 |--------|--------------|---------|
-| system-detector | - | Auto-detect OS, Python, Node.js environments |
+| core | core | Essential commands (always enabled) |
+| system-detector | system | Auto-detect OS, Python, Node.js environments |
 | memory-system | memory | Knowledge persistence with TOON indexes |
 | git | git | Git automation and rules |
 | task-system | task | Task state tracking and workflows |
 | prompt-presets | presets | Custom prompt templates |
+| pma-gh | pma | GitHub workflow (issue, PR, close) |
+
+#### Heavyweight Plugins (v2.2+)
+
+Heavyweight plugins have their own initialization commands and require file protection/merging.
+
+| Plugin | Command Name | Purpose |
+|--------|--------------|---------|
+| claude-flow | flow | AI orchestration with multi-agent support |
+
+**Heavyweight Plugin Features:**
+- Runs external init commands (e.g., `pnpm dlx claude-flow@alpha init`)
+- Backs up protected files before initialization
+- Merges file changes using configurable strategies (append, prepend, custom)
+- Supports plugin conflict detection
 
 ### Generated Structure
 
@@ -77,6 +95,9 @@ claude-memory-init/
 │   ├── core/                   # Core framework
 │   │   ├── initializer.ts      # Main initialization
 │   │   ├── interactive-initializer.ts  # Interactive flow
+│   │   ├── heavyweight-plugin-manager.ts  # Heavyweight plugin handling
+│   │   ├── output-router.ts    # Output path routing
+│   │   ├── resource-writer.ts  # Resource file writing
 │   │   ├── ui.ts               # UI Facade (for testability)
 │   │   ├── template-engine.ts  # Template rendering
 │   │   ├── agent-assembler.ts  # AGENT.md assembly
@@ -86,12 +107,13 @@ claude-memory-init/
 │   │   ├── validator.ts        # Validation
 │   │   └── exclusion.ts        # File exclusion rules
 │   ├── plugin/                 # Plugin system
-│   │   ├── types.ts            # Plugin interfaces
+│   │   ├── types.ts            # Plugin interfaces (incl. heavyweight types)
 │   │   ├── registry.ts         # Plugin registry
 │   │   ├── loader.ts           # Plugin loader
 │   │   ├── context.ts          # Plugin context
 │   │   └── index.ts            # Exports
 │   ├── plugins/                # Built-in plugins
+│   │   ├── core/               # Essential commands (always enabled)
 │   │   ├── system-detector/    # Environment detection
 │   │   │   ├── index.ts
 │   │   │   └── detectors/
@@ -102,6 +124,8 @@ claude-memory-init/
 │   │   ├── git/                # Git integration
 │   │   ├── task-system/        # Task management
 │   │   ├── prompt-presets/     # Prompt templates
+│   │   ├── claude-flow/        # Heavyweight: AI orchestration
+│   │   ├── pma-gh/             # GitHub workflow
 │   │   └── index.ts            # Plugin registry
 │   ├── prompts/                # Interactive UI
 │   │   ├── components/         # UI components
@@ -114,12 +138,16 @@ claude-memory-init/
 │   │   ├── system-info.ts
 │   │   ├── objectives.ts
 │   │   └── simple-prompts.ts
+│   ├── i18n/                   # Internationalization
+│   │   ├── en/                 # English translations
+│   │   ├── zh/                 # Chinese translations
+│   │   └── index.ts            # i18n entry point
 │   ├── utils/                  # Utilities
 │   │   ├── file-ops.ts         # File operations
 │   │   ├── git-ops.ts          # Git operations
 │   │   ├── gitignore-manager.ts
 │   │   ├── auto-commit.ts
-│   │   ├── system-detector.ts
+│   │   ├── merge-utils.ts      # File merge utilities
 │   │   ├── toon-utils.ts       # TOON format utilities
 │   │   ├── logger.ts           # Console output
 │   │   └── date-utils.ts
@@ -129,8 +157,12 @@ claude-memory-init/
 │   ├── agent/
 │   │   └── AGENT.md.template
 │   ├── commands/
+│   │   ├── core/               # Core slash commands
 │   │   ├── memory/             # Memory slash commands
-│   │   └── task/               # Task slash commands
+│   │   ├── task/               # Task slash commands
+│   │   └── pma/                # PMA-GH slash commands
+│   ├── skills/                 # Skill templates
+│   │   └── gh-issue.md         # GitHub issue skill
 │   ├── memory/
 │   │   ├── memory-workflow.md
 │   │   ├── tags.toon.template
@@ -177,23 +209,50 @@ interface Plugin {
     name: string;
     version: string;
     description: string;
-    commandName?: string;  // CLI command name
+    commandName?: string;      // CLI command name
+    recommended?: boolean;     // Show as recommended
+    heavyweight?: boolean;     // Has external init command
+    conflicts?: string[];      // Conflicting plugins
+  };
+
+  // Configuration flow (structured)
+  configuration?: {
+    needsConfiguration: boolean;
+    configure(context: ConfigurationContext): Promise<PluginConfig>;
+    getSummary(config: PluginConfig): string[];
   };
 
   // Lifecycle hooks
-  onRegister?(context: PluginContext): Promise<void>;
-  onBeforeInit?(context: PluginContext): Promise<void>;
-  onInit?(context: PluginContext): Promise<void>;
-  onAfterInit?(context: PluginContext): Promise<void>;
+  hooks?: {
+    beforeInit?(context: PluginContext): Promise<void>;
+    execute?(context: PluginContext): Promise<void>;
+    afterInit?(context: PluginContext): Promise<void>;
+    cleanup?(context: PluginContext): Promise<void>;
+  };
 
-  // Configuration
-  configure?(context: PluginContext): Promise<PluginConfig>;
-
-  // Commands
+  // CLI commands
   commands?: PluginCommand[];
 
-  // Content contribution
-  getAgentContent?(context: PluginContext): Promise<string>;
+  // Slash commands (auto-written to .claude/commands/)
+  slashCommands?: SlashCommand[];
+
+  // Skills (auto-written to .claude/skills/<name>/SKILL.md)
+  skills?: Skill[];
+
+  // Prompt contribution to AGENT.md
+  prompt?: {
+    placeholder: string;
+    generate(config: PluginConfig): string;
+  };
+
+  // File outputs to .agent/
+  outputs?: {
+    generate(context: PluginContext, config: PluginConfig): Promise<OutputFile[]>;
+  };
+
+  // Heavyweight plugin methods
+  getHeavyweightConfig?(context: PluginContext): HeavyweightPluginConfig;
+  mergeFile?(filePath: string, ourContent: string | null, theirContent: string): string;
 }
 ```
 
@@ -234,6 +293,7 @@ pnpm start          # Run built CLI
 - **Interactive**: Inquirer.js v9
 - **Testing**: Vitest + Cucumber
 - **Data Format**: TOON (@toon-format/toon)
+- **I18N**: typesafe-i18n v5
 
 ## Documentation
 
@@ -243,6 +303,8 @@ pnpm start          # Run built CLI
 |----------|---------|
 | REFACTOR_SUMMARY.md | v2.0 refactor overview |
 | PLUGIN_ARCHITECTURE_REFACTOR.md | Plugin system design |
+| HEAVYWEIGHT_PLUGINS.md | Heavyweight plugin framework (v2.2+) |
+| CLAUDE_FLOW_QUICK_START.md | Claude Flow integration guide |
 | INTERACTIVE_CLI_DESIGN.md | Interactive flow design |
 | CLI_COMMANDS_DESIGN.md | Command structure |
 | I18N_DESIGN.md | Internationalization |
@@ -289,6 +351,6 @@ pnpm test:coverage
 
 ## Status
 
-**Version**: 2.0.0-alpha
-**Status**: Core features implemented, testing complete (100/100 passed)
-**Last Updated**: 2025-11-20
+**Version**: 2.2.0-alpha
+**Status**: Heavyweight plugin framework + I18N implemented (399 unit tests + 49 BDD scenarios passed)
+**Last Updated**: 2025-12-10

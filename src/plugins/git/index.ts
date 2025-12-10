@@ -13,6 +13,7 @@ import type {
   FileOutput,
 } from '../../plugin/types.js';
 import { formatPluginConfigAsToon } from '../../utils/toon-utils.js';
+import { t } from '../../i18n/index.js';
 
 /**
  * Git plugin configuration options
@@ -104,8 +105,8 @@ function generateGitRulesMarkdown(options: GitPluginOptions): string {
     sections.push('');
     sections.push('**What Gets Synced**:');
     sections.push('- ✅ `.agent/memory/system/` (team-shared knowledge)');
-    sections.push('- ❌ `.agent/memory/semantic/` (project-specific)');
-    sections.push('- ❌ `.agent/memory/episodic/` (task history)');
+    sections.push('- ❌ `.agent/memory/knowledge/` (project-specific)');
+    sections.push('- ❌ `.agent/memory/history/` (task history)');
     sections.push('');
     sections.push('**Workflow**:');
     sections.push('1. Make changes to system memory files');
@@ -213,23 +214,24 @@ export const gitPlugin: Plugin = {
 
     async configure(context: ConfigurationContext): Promise<PluginConfig> {
       const { ui } = context;
+      const L = t();
 
       // Auto-commit configuration
       const autoCommit = await ui.confirm(
-        'Enable auto-commit for memory system updates?',
+        L.plugins.git.enableAutoCommit(),
         false
       );
 
       let commitSeparately = true;
       if (autoCommit) {
         commitSeparately = await ui.confirm(
-          'Commit memory files separately from other changes?',
+          L.plugins.git.separateCommits(),
           true
         );
       }
 
       // Remote sync configuration
-      const enableSync = await ui.confirm('Enable remote sync for system memory?', false);
+      const enableSync = await ui.confirm(L.plugins.git.enableRemoteSync(), false);
 
       let remoteSyncConfig = {
         enabled: false,
@@ -237,11 +239,11 @@ export const gitPlugin: Plugin = {
 
       if (enableSync) {
         const remoteUrl = await ui.input(
-          'Remote template repository URL:',
+          L.plugins.git.remoteUrl(),
           'git@github.com:dt-activenetwork/mem.git'
         );
 
-        const autoPR = await ui.confirm('Auto-create PRs when syncing?', false);
+        const autoPR = await ui.confirm(L.plugins.git.autoCreatePr(), false);
 
         remoteSyncConfig = {
           enabled: true,
@@ -252,7 +254,7 @@ export const gitPlugin: Plugin = {
       }
 
       // AI git operations
-      const aiGitOps = await ui.confirm('Allow AI agent to perform git operations?', autoCommit);
+      const aiGitOps = await ui.confirm(L.plugins.git.allowAiGit(), autoCommit);
 
       const options: GitPluginOptions = {
         auto_commit: autoCommit,
@@ -270,17 +272,18 @@ export const gitPlugin: Plugin = {
 
     getSummary(config: PluginConfig): string[] {
       const options = config.options as unknown as GitPluginOptions;
+      const L = t();
       const lines: string[] = [];
 
       if (options.auto_commit) {
-        lines.push('Auto-commit: enabled');
+        lines.push(L.plugins.git.autoCommitEnabled());
       }
 
       if (options.remote_sync.enabled) {
-        lines.push('Remote sync: enabled');
+        lines.push(L.plugins.git.remoteSyncEnabled());
       }
 
-      lines.push(`AI git ops: ${options.ai_git_operations ? 'allowed' : 'forbidden'}`);
+      lines.push(options.ai_git_operations ? L.plugins.git.aiGitAllowed() : L.plugins.git.aiGitForbidden());
 
       return lines;
     },
@@ -290,10 +293,11 @@ export const gitPlugin: Plugin = {
     async execute(context: PluginContext): Promise<void> {
       const config = context.config.plugins.get('git');
       if (!config) return;
+      const L = t();
 
       const options = config.options as unknown as GitPluginOptions;
       context.shared.set('git_config', options);
-      context.logger.info('Git configuration stored');
+      context.logger.info(L.plugins.git.configStored());
     },
   },
 

@@ -26,6 +26,8 @@
     "test:bdd": "NODE_OPTIONS='--import tsx' cucumber-js",
     "test:bdd:dry": "NODE_OPTIONS='--import tsx' cucumber-js --dry-run",
     "test:all": "pnpm test && pnpm test:bdd",
+    "i18n": "typesafe-i18n",
+    "i18n:watch": "typesafe-i18n --watch",
     "postinstall": "node scripts/dev/postinstall.ts",
     "submodule:init": "git submodule update --init --recursive",
     "submodule:update": "git submodule update --remote --merge",
@@ -74,6 +76,7 @@
     "sinon": "^21.0.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
+    "typesafe-i18n": "^5.26.2",
     "typescript": "^5.3.0",
     "vite": "^7.2.2",
     "vitest": "^4.0.10"

@@ -1,9 +1,9 @@
 # Claude Init - User Guide
 
-Complete guide for using Claude Init v2.0 to set up AI agent systems in your projects.
+Complete guide for using Claude Init v2.2 to set up AI agent systems in your projects.
 
-**Version**: 2.0.0-alpha
-**Last Updated**: 2025-11-20
+**Version**: 2.2.0-alpha
+**Last Updated**: 2025-12-10
 
 ---
 
@@ -11,11 +11,13 @@ Complete guide for using Claude Init v2.0 to set up AI agent systems in your pro
 
 1. [Quick Start](#quick-start)
 2. [Plugin Guide](#plugin-guide)
-3. [Configuration](#configuration)
-4. [TOON Format](#toon-format)
-5. [Common Workflows](#common-workflows)
-6. [Troubleshooting](#troubleshooting)
-7. [FAQ](#faq)
+3. [Heavyweight Plugins](#heavyweight-plugins-v22)
+4. [I18N Support](#i18n-support)
+5. [Configuration](#configuration)
+6. [TOON Format](#toon-format)
+7. [Common Workflows](#common-workflows)
+8. [Troubleshooting](#troubleshooting)
+9. [FAQ](#faq)
 
 ---
 
@@ -82,7 +84,7 @@ your-project/
 ├── AGENT.md                    # Main instructions for Claude
 └── .agent/
     ├── system/
-    │   └── info.toon          # System detection results (cached)
+    │   └── config.toon        # System detection results (cached)
     ├── git/
     │   ├── rules.md           # Git operation rules
     │   └── config.toon        # Git configuration
@@ -90,11 +92,11 @@ your-project/
     │   ├── index/
     │   │   ├── tags.toon      # Tag-based index
     │   │   └── topics.toon    # Topic hierarchy
-    │   ├── knowledge/         # Stable knowledge (semantic)
-    │   ├── history/           # Task records (episodic)
-    │   └── workflows/         # Procedures
+    │   ├── knowledge/         # Stable knowledge
+    │   └── history/           # Task records
     ├── tasks/
     │   ├── current.toon       # Current task state
+    │   ├── workflows/         # Reusable procedures
     │   ├── output/            # Task deliverables
     │   └── tmp/               # Temporary files (gitignored)
     └── presets/               # Custom prompts (optional)
@@ -132,7 +134,7 @@ When multiple package managers are found, you'll be asked to choose:
 
 **Configuration Persistence**:
 
-Your selection is saved to `.agent/system/info.toon`:
+Your selection is saved to `.agent/system/config.toon`:
 
 ```toon
 plugin: system-detector
@@ -168,7 +170,8 @@ python:
 |------|-----------|---------|---------|
 | **Knowledge** | `memory/knowledge/` | Stable architectural knowledge | API designs, patterns |
 | **History** | `memory/history/` | Task history records | Session logs, decisions |
-| **Workflows** | `memory/workflows/` | Reusable procedures | Test workflows, deployment |
+
+> **Note**: Workflows are managed by the Task System plugin at `tasks/workflows/`.
 
 **Indexes** (TOON format):
 
@@ -280,6 +283,152 @@ AI can read these when needed for specialized tasks.
 
 ---
 
+### Heavyweight Plugins (v2.2+)
+
+**What are Heavyweight Plugins?**
+
+Heavyweight plugins are special plugins that have their own initialization commands (like external CLI tools). They may generate files that conflict with claude-init's generated files.
+
+**Key Differences from Regular Plugins:**
+
+| Aspect | Regular Plugins | Heavyweight Plugins |
+|--------|----------------|---------------------|
+| Init Command | None | External CLI (e.g., `pnpm dlx tool init`) |
+| Execution Order | First | After all regular plugins |
+| File Conflicts | None | Automatic backup and merge |
+| Error Recovery | Standard | Full rollback support |
+
+**Built-in Heavyweight Plugin: Claude Flow**
+
+Claude Flow provides advanced AI orchestration with multi-agent support.
+
+**Initialization Modes:**
+- **Standard**: Full setup with common workflows
+- **SPARC**: SPARC methodology with specialized workflows
+- **Minimal**: Basic setup with essential files only
+- **Skip**: Do not initialize Claude Flow
+
+**Interactive Configuration:**
+
+```
+📦 Step 2/5: Select Features
+What features do you want to enable?
+  ◉ System Detection
+  ◉ Memory System
+  ◉ Claude Flow        [heavyweight]
+  ◯ Task System        (conflicts with Claude Flow)
+
+Heavyweight plugins selected: claude-flow
+These will run external initialization commands.
+
+📝 Step 3/5: Configure Claude Flow
+? Select initialization mode:
+  ● Standard   Full initialization with common workflows
+  ○ SPARC      SPARC methodology with specialized workflows
+  ○ Minimal    Minimal setup with only essential files
+  ○ Skip       Skip Claude Flow initialization
+
+? Select workflows:
+  ◉ Code Review
+  ◉ Documentation
+  ◯ Testing
+  ◯ Refactoring
+```
+
+**File Protection:**
+
+When Claude Flow runs, claude-init:
+1. Backs up `CLAUDE.md` and `.agent/config.toon`
+2. Runs `pnpm dlx claude-flow@alpha init`
+3. Merges Claude Flow's changes with existing content
+4. Restores backups if anything fails
+
+**Conflict Detection:**
+
+Some plugins conflict with each other. Claude Flow conflicts with Task System because both provide task management. When you select Claude Flow, Task System is automatically disabled.
+
+**See Also**: [Claude Flow Quick Start](./CLAUDE_FLOW_QUICK_START.md) for detailed setup guide.
+
+---
+
+### PMA-GH Plugin (v2.2+)
+
+**Purpose**: GitHub project management assistant
+
+**Features**:
+- Fetch and validate GitHub issues
+- Create PRs linked to issues
+- Close issues with comments
+
+**Slash Commands**:
+- `/pma-issue <url>` - Start working on a GitHub issue
+- `/pma-pr` - Create PR to resolve current issue
+- `/pma-close` - Close issue as not planned
+
+**Skills**:
+- `gh-issue` - Fetch and validate GitHub issues using gh CLI
+
+**Prerequisites**:
+- `gh` CLI installed and authenticated (`gh auth login`)
+- Access to the GitHub repository
+
+**Workflow**:
+```
+1. /pma-issue https://github.com/owner/repo/issues/123
+   → Fetches issue details
+   → Validates assignment and project linkage
+   → Creates feature branch (optional)
+   → Analyzes requirements
+
+2. [Work on implementation]
+
+3. /pma-pr
+   → Creates PR to resolve the issue
+```
+
+---
+
+### Core Plugin (v2.2+)
+
+**Purpose**: Essential commands that are always enabled
+
+**Slash Commands**:
+- `/session-init` - Initialize session by reading project configuration
+
+This plugin is automatically enabled and cannot be disabled.
+
+---
+
+## I18N Support
+
+Claude Init supports multiple languages (v2.2+):
+
+**Supported Languages**:
+- English (default)
+- 简体中文 (Simplified Chinese)
+
+**Automatic Detection**:
+Language is detected from your system locale (`LANG`, `LANGUAGE`, `LC_ALL` environment variables).
+
+**Manual Override**:
+```bash
+# Use Chinese
+export CLAUDE_INIT_LANG=zh
+claude-init
+
+# Use English
+export CLAUDE_INIT_LANG=en
+claude-init
+```
+
+**What's Translated**:
+- All interactive prompts
+- CLI command descriptions
+- Error messages
+- Plugin configuration UI
+
+---
+
 ## Configuration
 
 ### Main Config File
@@ -314,7 +463,7 @@ plugins:
 Each plugin saves its config in its own directory:
 
 ```
-.agent/system/info.toon       # System detection results
+.agent/system/config.toon     # System detection results
 .agent/git/config.toon         # Git settings
 .agent/tasks/current.toon      # Current task state
 ```
@@ -332,7 +481,7 @@ claude-init init --force
 vim .agent/config.toon
 
 # Edit plugin config
-vim .agent/system/info.toon
+vim .agent/system/config.toon
 ```
 
 ---
@@ -374,7 +523,7 @@ description: |
 
 **In AGENT.md prompts**:
 ```markdown
-Read `.agent/system/info.toon` for system environment details.
+Read `.agent/system/config.toon` for system environment details.
 ```
 
 **AI automatically understands TOON** - no special parsing needed.
@@ -621,7 +770,7 @@ Then re-run `claude-init init --force` to regenerate AGENT.md without that plugi
 
 A:
 - Main config: `.agent/config.toon`
-- System detection: `.agent/system/info.toon`
+- System detection: `.agent/system/config.toon`
 - Git settings: `.agent/git/config.toon`
 - Task state: `.agent/tasks/current.toon`
 
@@ -862,6 +1011,6 @@ After initialization:
 
 ---
 
-**Version**: 2.0.0-alpha
-**Last Updated**: 2025-11-20
-**Status**: Production-ready core features
+**Version**: 2.2.0-alpha
+**Last Updated**: 2025-12-10
+**Status**: Heavyweight plugins + I18N implemented

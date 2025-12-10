@@ -5,6 +5,7 @@ import { execSync } from 'child_process';
 import * as path from 'path';
 import * as logger from './logger.js';
 import type { GitConfig } from '../types/config.js';
+import { t } from '../i18n/index.js';
 
 /**
  * Check if directory is a git repository
@@ -143,16 +144,18 @@ export async function autoCommitMemoryUpdates(
     return;
   }
 
+  const L = t();
+
   // Check if it's a git repository
   if (!isGitRepository(targetDir)) {
-    logger.warning('⚠️  Not a git repository. Skipping auto-commit.');
+    logger.warning('⚠️  ' + L.errors.git.notRepo());
     return;
   }
 
   // Get modified files
   const modifiedFiles = getModifiedFiles(targetDir);
   if (modifiedFiles.length === 0) {
-    logger.info('📝 No changes to commit');
+    logger.info('📝 ' + L.utils.autoCommit.noChanges());
     return;
   }
 
@@ -160,12 +163,12 @@ export async function autoCommitMemoryUpdates(
   const { memoryFiles, otherFiles } = separateMemoryFiles(modifiedFiles, baseDir);
 
   if (memoryFiles.length === 0) {
-    logger.info('📝 No memory system changes to commit');
+    logger.info('📝 ' + L.utils.autoCommit.noMemoryChanges());
     return;
   }
 
   logger.blank();
-  logger.info('📝 Auto-committing changes...');
+  logger.info('📝 ' + L.utils.autoCommit.committing());
   logger.blank();
 
   // Determine commit strategy
@@ -173,35 +176,35 @@ export async function autoCommitMemoryUpdates(
 
   if (commitSeparately && otherFiles.length > 0) {
     // Strategy 1: Commit memory files separately
-    logger.info(`📦 Committing ${memoryFiles.length} memory system file(s) separately...`);
+    logger.info('📦 ' + L.utils.autoCommit.committingSeparate({ count: memoryFiles.length }));
     const memoryMessage = generateMemoryCommitMessage(memoryFiles);
     const success = createCommit(targetDir, memoryFiles, memoryMessage);
 
     if (success) {
-      logger.success('✅ Memory system changes committed');
+      logger.success('✅ ' + L.utils.autoCommit.committed());
       logger.blank();
-      logger.info('📝 Files committed:');
+      logger.info('📝 ' + L.utils.autoCommit.filesCommitted());
       memoryFiles.forEach(file => logger.info(`  - ${file}`));
       logger.blank();
-      logger.info(`⚠️  Note: ${otherFiles.length} other file(s) remain uncommitted:`);
+      logger.info('⚠️  ' + L.utils.autoCommit.otherFilesRemain({ count: otherFiles.length }));
       otherFiles.forEach(file => logger.info(`  - ${file}`));
-      logger.info('💡 Commit these files manually or they will be included in the next commit');
+      logger.info('💡 ' + L.utils.autoCommit.commitManually());
     } else {
-      logger.error('❌ Failed to commit memory system changes');
+      logger.error('❌ ' + L.errors.git.commitFailed());
     }
   } else {
     // Strategy 2: Commit all files together
-    logger.info(`📦 Committing ${memoryFiles.length} memory system file(s)...`);
+    logger.info('📦 ' + L.utils.autoCommit.committingCombined({ count: memoryFiles.length }));
     const memoryMessage = generateMemoryCommitMessage(memoryFiles);
     const success = createCommit(targetDir, memoryFiles, memoryMessage);
 
     if (success) {
-      logger.success('✅ Memory system changes committed');
+      logger.success('✅ ' + L.utils.autoCommit.committed());
       logger.blank();
-      logger.info('📝 Files committed:');
+      logger.info('📝 ' + L.utils.autoCommit.filesCommitted());
       memoryFiles.forEach(file => logger.info(`  - ${file}`));
     } else {
-      logger.error('❌ Failed to commit memory system changes');
+      logger.error('❌ ' + L.errors.git.commitFailed());
     }
   }
 

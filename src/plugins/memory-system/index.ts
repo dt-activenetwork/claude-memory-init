@@ -15,6 +15,7 @@ import type {
 } from '../../plugin/types.js';
 import { readFile, writeFile, ensureDir, copyFile } from '../../utils/file-ops.js';
 import { getCurrentDate } from '../../utils/date-utils.js';
+import { t } from '../../i18n/index.js';
 
 /**
  * Memory System Plugin Options
@@ -42,26 +43,26 @@ export const memorySystemPlugin: Plugin = {
   slashCommands: [
     {
       name: 'memory-search',
-      description: 'Find notes by tag',
+      description: t().plugins.memorySystem.commands.searchDesc(),
       argumentHint: '[tag-name]',
-      templateFile: 'memory/search.md',
+      templatePath: 'commands/memory/search.md',
     },
     {
       name: 'memory-query',
-      description: 'Query notes by topic',
+      description: t().plugins.memorySystem.commands.queryDesc(),
       argumentHint: '[topic-path]',
-      templateFile: 'memory/query.md',
+      templatePath: 'commands/memory/query.md',
     },
     {
       name: 'memory-index',
-      description: 'Show complete memory index',
-      templateFile: 'memory/index.md',
+      description: t().plugins.memorySystem.commands.indexDesc(),
+      templatePath: 'commands/memory/index.md',
     },
     {
       name: 'memory-recent',
-      description: 'Show N recent notes',
+      description: t().plugins.memorySystem.commands.recentDesc(),
       argumentHint: '[count]',
-      templateFile: 'memory/recent.md',
+      templatePath: 'commands/memory/recent.md',
     },
   ],
 
@@ -70,21 +71,22 @@ export const memorySystemPlugin: Plugin = {
 
     async configure(context: ConfigurationContext): Promise<PluginConfig> {
       const { ui } = context;
+      const L = t();
 
       // Select memory types
       const memoryTypes = await ui.checkboxList(
-        'Which memory types do you want to enable?',
+        L.plugins.memorySystem.selectTypes(),
         [
           {
-            name: 'Knowledge',
+            name: L.plugins.memorySystem.knowledge(),
             value: 'knowledge',
-            description: 'Stable architectural knowledge',
+            description: L.plugins.memorySystem.knowledgeDesc(),
             checked: true,
           },
           {
-            name: 'History',
+            name: L.plugins.memorySystem.history(),
             value: 'history',
-            description: 'Task history records',
+            description: L.plugins.memorySystem.historyDesc(),
             checked: true,
           },
         ]
@@ -92,7 +94,7 @@ export const memorySystemPlugin: Plugin = {
 
       // Ask about system knowledge layer
       const includeSystem = await ui.confirm(
-        'Include system knowledge layer (universal tools, standards)?',
+        L.plugins.memorySystem.includeSystem(),
         false
       );
 
@@ -109,12 +111,13 @@ export const memorySystemPlugin: Plugin = {
 
     getSummary(config: PluginConfig): string[] {
       const options = config.options as unknown as MemorySystemOptions;
+      const L = t();
       const lines: string[] = [];
 
-      lines.push(`Memory types: ${options.memory_types.join(', ')}`);
+      lines.push(L.plugins.memorySystem.typesSelected({ types: options.memory_types.join(', ') }));
 
       if (options.include_system) {
-        lines.push('System knowledge: included');
+        lines.push(L.plugins.memorySystem.systemIncluded());
       }
 
       return lines;
@@ -125,10 +128,11 @@ export const memorySystemPlugin: Plugin = {
     async execute(context: PluginContext): Promise<void> {
       const config = context.config.plugins.get('memory-system');
       if (!config) return;
+      const L = t();
 
       // Store memory config in shared context
       context.shared.set('memory_config', config.options);
-      context.logger.info('Memory system initialized');
+      context.logger.info(L.plugins.memorySystem.initialized());
     },
   },
 
@@ -239,23 +243,6 @@ To be managed separately (future: Skills system).
           content: systemReadme,
           format: 'markdown',
         });
-      }
-
-      // 6. Slash commands for memory operations
-      const memoryCommands = ['search', 'query', 'index', 'recent'];
-
-      for (const cmd of memoryCommands) {
-        const cmdPath = path.join(process.cwd(), `templates/commands/memory/${cmd}.md`);
-        try {
-          const cmdContent = await readFile(cmdPath);
-          outputs.push({
-            path: `commands/memory-${cmd}.md`,
-            content: cmdContent,
-            format: 'markdown',
-          });
-        } catch (err) {
-          // Command template not found, skip
-        }
       }
 
       return outputs;

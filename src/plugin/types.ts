@@ -365,6 +365,27 @@ export interface PluginMeta {
    * If true, plugin will prompt user to select scope during setup.
    */
   scopeSelectable?: boolean;
+
+  /**
+   * Whether this is a heavyweight plugin
+   *
+   * Heavyweight plugins have their own initialization commands that generate
+   * files which may conflict with our generated files. They require special
+   * handling for file protection and merging.
+   *
+   * @example claude-flow, which runs `pnpm dlx claude-flow@alpha init`
+   */
+  heavyweight?: boolean;
+
+  /**
+   * Names of plugins that conflict with this plugin
+   *
+   * When a conflicting plugin is selected, this plugin will be disabled
+   * in the plugin selection UI.
+   *
+   * @example ['task-system'] - conflicts with task-system
+   */
+  conflicts?: string[];
 }
 
 /**
@@ -455,7 +476,9 @@ export interface PluginGitignoreContribution {
  * Slash command definition
  *
  * Slash commands are prompt templates that can be invoked by users or AI.
- * Commands encapsulate complex workflows in reusable, parameterized prompts.
+ * When declared in a plugin, the CLI automatically:
+ * 1. Reads the template from templatePath
+ * 2. Writes it to the configured output directory (e.g., .claude/commands/)
  */
 export interface SlashCommand {
   /** Command name (e.g., "memory-search", "task-status") */
@@ -464,11 +487,151 @@ export interface SlashCommand {
   /** Short description of what the command does */
   description: string;
 
-  /** Argument hint for help text (e.g., "[tag-name]", "[task-id]") */
+  /** Argument hint for help text (e.g., "[tag-name]", "<url>") */
   argumentHint?: string;
 
-  /** Template file path relative to templates/commands/ directory */
-  templateFile: string;
+  /**
+   * Template file path relative to templates/ directory
+   *
+   * @example 'commands/memory/search.md'
+   * @example 'commands/pma/issue.md'
+   */
+  templatePath: string;
+}
+
+/**
+ * Skill definition
+ *
+ * Skills are specialized capabilities that Claude can use.
+ * When declared in a plugin, the CLI automatically:
+ * 1. Reads the template from templatePath
+ * 2. Writes it to .claude/skills/<name>/SKILL.md
+ */
+export interface Skill {
+  /** Skill name, used as directory name (e.g., "gh-issue") */
+  name: string;
+
+  /** Skill description */
+  description: string;
+
+  /** Skill version (e.g., "1.0.0") */
+  version: string;
+
+  /**
+   * Template file path relative to templates/ directory
+   *
+   * @example 'skills/gh-issue.md'
+   * @example 'skills/memory-indexer.md'
+   */
+  templatePath: string;
+}
+
+// ============================================================================
+// Heavyweight Plugin Types
+// ============================================================================
+
+/**
+ * Merge strategy for protected files
+ *
+ * - 'append': Our content + separator + their content
+ * - 'prepend': Their content + separator + our content
+ * - 'custom': Use the plugin's mergeFile() function
+ */
+export type MergeStrategy = 'append' | 'prepend' | 'custom';
+
+/**
+ * Protected file configuration
+ *
+ * Defines a file that should be protected during heavyweight plugin initialization.
+ * The file will be backed up before the plugin's init command runs, and then
+ * merged according to the specified strategy.
+ */
+export interface ProtectedFile {
+  /** Path relative to project root (e.g., 'CLAUDE.md', '.agent/config.toon') */
+  path: string;
+
+  /** Strategy for merging our content with the plugin's generated content */
+  mergeStrategy: MergeStrategy;
+}
+
+/**
+ * Heavyweight plugin configuration
+ *
+ * Returned by getHeavyweightConfig() to specify how the plugin should be
+ * initialized and how file conflicts should be resolved.
+ */
+export interface HeavyweightPluginConfig {
+  /**
+   * Files to protect during initialization
+   *
+   * These files will be backed up before the init command runs,
+   * and merged according to their merge strategy afterward.
+   */
+  protectedFiles: ProtectedFile[];
+
+  /**
+   * Initialization command to execute
+   *
+   * If null, the plugin doesn't need an external init command.
+   * Example: 'pnpm dlx claude-flow@alpha init'
+   */
+  initCommand: string | null;
+
+  /**
+   * Working directory for the init command (optional)
+   *
+   * If not specified, uses the project root.
+   */
+  workingDirectory?: string;
+
+  /**
+   * Timeout for the init command in milliseconds (optional)
+   *
+   * Default: 120000 (2 minutes)
+   */
+  timeout?: number;
+
+  /**
+   * Environment variables to pass to the init command (optional)
+   */
+  env?: Record<string, string>;
+}
+
+/**
+ * Result of a file merge operation
+ */
+export interface FileMergeResult {
+  /** Path to the file */
+  path: string;
+
+  /** Whether the merge was successful */
+  success: boolean;
+
+  /** Merged content (if successful) */
+  content?: string;
+
+  /** Error message (if failed) */
+  error?: string;
+}
+
+/**
+ * Result of heavyweight plugin execution
+ */
+export interface HeavyweightExecutionResult {
+  /** Whether the overall execution was successful */
+  success: boolean;
+
+  /** Command output (if command was run) */
+  commandOutput?: string;
+
+  /** Command exit code (if command was run) */
+  exitCode?: number;
+
+  /** File merge results */
+  mergeResults: FileMergeResult[];
+
+  /** Error message (if failed) */
+  error?: string;
 }
 
 /**
@@ -489,15 +652,66 @@ export interface Plugin {
   /** CLI commands exposed by the plugin (optional) */
   commands?: PluginCommand[];
 
-  /** Slash commands provided by this plugin (optional) */
+  /**
+   * Slash commands provided by this plugin (optional)
+   *
+   * CLI automatically reads templates and writes to configured commands directory
+   * Plugins should NOT write commands in outputs.generate - use this instead
+   */
   slashCommands?: SlashCommand[];
+
+  /**
+   * Skills provided by this plugin (optional)
+   *
+   * CLI automatically reads templates and writes to .claude/skills/<name>/SKILL.md
+   */
+  skills?: Skill[];
 
   /** Prompt contribution to AGENT.md (optional) */
   prompt?: PluginPromptContribution;
 
-  /** File outputs to .agent/ directory (optional) */
+  /**
+   * File outputs to .agent/ directory (optional)
+   *
+   * Note: Do NOT include slash commands or skills here.
+   * Use slashCommands and skills properties instead.
+   */
   outputs?: PluginOutputs;
 
   /** Gitignore patterns contribution (optional) */
   gitignore?: PluginGitignoreContribution;
+
+  // ============================================================================
+  // Heavyweight Plugin Methods
+  // ============================================================================
+
+  /**
+   * Get heavyweight plugin configuration
+   *
+   * Only called if meta.heavyweight is true. Returns configuration for
+   * file protection, merge strategies, and the initialization command.
+   *
+   * @param context Plugin context
+   * @returns Heavyweight plugin configuration
+   */
+  getHeavyweightConfig?: (context: PluginContext) => HeavyweightPluginConfig | Promise<HeavyweightPluginConfig>;
+
+  /**
+   * Custom file merge function
+   *
+   * Called when a protected file has mergeStrategy: 'custom'.
+   * Allows the plugin to implement complex merge logic.
+   *
+   * @param filePath Path to the file (relative to project root)
+   * @param ourContent Our content (null if file didn't exist)
+   * @param theirContent Content generated by the plugin's init command
+   * @param context Plugin context
+   * @returns Merged content
+   */
+  mergeFile?: (
+    filePath: string,
+    ourContent: string | null,
+    theirContent: string,
+    context: PluginContext
+  ) => string | Promise<string>;
 }
