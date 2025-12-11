@@ -1,5 +1,8 @@
 /**
  * System detection utilities for OS, package manager, user privileges, and development tools
+ *
+ * This module provides high-level system detection utilities used by plugins.
+ * Core detection functions are re-exported from src/core/system-detector.ts.
  */
 import * as os from 'os';
 import * as fs from 'fs/promises';
@@ -7,6 +10,18 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as logger from './logger.js';
 import type { PythonConfig, NodeConfig, DevelopmentTools } from '../types/config.js';
+
+// Re-export core detection functions for backward compatibility
+export {
+  commandExists,
+  getCommandVersion,
+  getOS,
+  getInstallCommand,
+  getCommandPath,
+  isRoot,
+  hasSudo,
+  type OSInfo,
+} from '../core/system-detector.js';
 
 const execAsync = promisify(exec);
 
@@ -100,8 +115,9 @@ export async function detectOS(): Promise<{
 
 /**
  * Check if a command exists in PATH
+ * @internal Used internally - use exported commandExists from core for external use
  */
-async function commandExists(command: string): Promise<boolean> {
+async function localCommandExists(command: string): Promise<boolean> {
   try {
     const which = os.platform() === 'win32' ? 'where' : 'which';
     await execAsync(`${which} ${command}`);
@@ -120,43 +136,43 @@ export async function detectPackageManagers(os_type: string, is_msys2: boolean):
   if (os_type === 'windows') {
     if (is_msys2) {
       // MSYS2 uses pacman
-      if (await commandExists('pacman')) managers.push('pacman');
+      if (await localCommandExists('pacman')) managers.push('pacman');
     } else {
       // Native Windows package managers
-      if (await commandExists('choco')) managers.push('choco');
-      if (await commandExists('scoop')) managers.push('scoop');
-      if (await commandExists('winget')) managers.push('winget');
+      if (await localCommandExists('choco')) managers.push('choco');
+      if (await localCommandExists('scoop')) managers.push('scoop');
+      if (await localCommandExists('winget')) managers.push('winget');
     }
   } else if (os_type === 'darwin') {
     // macOS package managers
-    if (await commandExists('brew')) managers.push('brew');
-    if (await commandExists('port')) managers.push('port');
+    if (await localCommandExists('brew')) managers.push('brew');
+    if (await localCommandExists('port')) managers.push('port');
   } else if (os_type === 'linux') {
     // Linux package managers - check common ones
     // Debian/Ubuntu family
-    if (await commandExists('apt')) managers.push('apt');
-    if (await commandExists('apt-get')) managers.push('apt-get');
+    if (await localCommandExists('apt')) managers.push('apt');
+    if (await localCommandExists('apt-get')) managers.push('apt-get');
 
     // Arch family
-    if (await commandExists('pacman')) managers.push('pacman');
-    if (await commandExists('paru')) managers.push('paru');
-    if (await commandExists('yay')) managers.push('yay');
+    if (await localCommandExists('pacman')) managers.push('pacman');
+    if (await localCommandExists('paru')) managers.push('paru');
+    if (await localCommandExists('yay')) managers.push('yay');
 
     // Red Hat family
-    if (await commandExists('dnf')) managers.push('dnf');
-    if (await commandExists('yum')) managers.push('yum');
+    if (await localCommandExists('dnf')) managers.push('dnf');
+    if (await localCommandExists('yum')) managers.push('yum');
 
     // SUSE
-    if (await commandExists('zypper')) managers.push('zypper');
+    if (await localCommandExists('zypper')) managers.push('zypper');
 
     // Alpine
-    if (await commandExists('apk')) managers.push('apk');
+    if (await localCommandExists('apk')) managers.push('apk');
 
     // Gentoo
-    if (await commandExists('emerge')) managers.push('emerge');
+    if (await localCommandExists('emerge')) managers.push('emerge');
 
     // Nix
-    if (await commandExists('nix-env')) managers.push('nix-env');
+    if (await localCommandExists('nix-env')) managers.push('nix-env');
   }
 
   return managers;
@@ -221,7 +237,7 @@ export async function checkSudoAvailability(): Promise<boolean> {
       return true;
     } catch {
       // sudo exists but may require password
-      return await commandExists('sudo');
+      return await localCommandExists('sudo');
     }
   } catch {
     return false;
@@ -359,11 +375,11 @@ async function getCommandPath(command: string): Promise<string> {
 export async function detectPython(): Promise<PythonConfig> {
   // Try python3 first, then python
   let pythonCmd = 'python3';
-  let available = await commandExists(pythonCmd);
+  let available = await localCommandExists(pythonCmd);
 
   if (!available) {
     pythonCmd = 'python';
-    available = await commandExists(pythonCmd);
+    available = await localCommandExists(pythonCmd);
   }
 
   if (!available) {
@@ -382,7 +398,7 @@ export async function detectPython(): Promise<PythonConfig> {
   const path = await getCommandPath(pythonCmd);
 
   // Check for uv (modern Python package manager)
-  const has_uv = await commandExists('uv');
+  const has_uv = await localCommandExists('uv');
 
   // Check for venv support (built into Python 3.3+)
   let has_venv = false;
@@ -418,7 +434,7 @@ export async function detectPython(): Promise<PythonConfig> {
  * Detect Node.js environment
  */
 export async function detectNode(): Promise<NodeConfig> {
-  const available = await commandExists('node');
+  const available = await localCommandExists('node');
 
   if (!available) {
     return {
@@ -437,9 +453,9 @@ export async function detectNode(): Promise<NodeConfig> {
   // Detect available Node package managers
   const package_managers: string[] = [];
 
-  if (await commandExists('pnpm')) package_managers.push('pnpm');
-  if (await commandExists('yarn')) package_managers.push('yarn');
-  if (await commandExists('npm')) package_managers.push('npm');
+  if (await localCommandExists('pnpm')) package_managers.push('pnpm');
+  if (await localCommandExists('yarn')) package_managers.push('yarn');
+  if (await localCommandExists('npm')) package_managers.push('npm');
 
   // Default selection priority: pnpm > yarn > npm
   let selected_package_manager = '';

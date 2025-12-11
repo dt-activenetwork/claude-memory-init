@@ -18,7 +18,13 @@ import {
   type UIComponents,
   type Logger,
   type FileOutput,
+  type PluginDependencyStatus,
 } from '../plugin/types.js';
+import {
+  createDependencyChecker,
+  type DependencyChecker,
+} from './dependency-checker.js';
+import { InitCommandRunner, type InitCommandResult } from './init-command-runner.js';
 import { ui } from './ui.js';
 import { ProgressIndicator } from '../prompts/components/progress.js';
 import * as logger from '../utils/logger.js';
@@ -49,6 +55,8 @@ import {
 } from './heavyweight-plugin-manager.js';
 import { OutputRouter, DEFAULT_OUTPUT_ROUTES } from './output-router.js';
 import { ResourceWriter, DefaultTemplateLoader } from './resource-writer.js';
+import { PostInitCollector } from './post-init-collector.js';
+import { loadCLIConfig, type CLIConfig } from './plugin-config.js';
 
 /**
  * Project information collected during initialization
@@ -127,11 +135,19 @@ export class InteractiveInitializer {
         // action === 'reinitialize' - continue with normal flow
       }
 
+      // Load CLI configuration for plugin visibility
+      const cliConfig = await loadCLIConfig(targetDir);
+
+      // Initialize dependency checker and check all plugins
+      const depChecker = createDependencyChecker();
+      const availablePlugins = this.pluginRegistry.getVisible(cliConfig);
+      const depStatuses = await depChecker.checkAllPlugins(availablePlugins);
+
       // Step 1: Collect project information (fixed step)
       const projectInfo = await this.promptProjectInfo(1);
 
-      // Step 2: Select plugins (fixed step)
-      const selectedPlugins = await this.promptPluginSelection(2);
+      // Step 2: Select plugins (fixed step, with dependency status)
+      const selectedPlugins = await this.promptPluginSelection(2, undefined, depStatuses, availablePlugins);
 
       if (selectedPlugins.length === 0) {
         const L = t();
@@ -168,11 +184,16 @@ export class InteractiveInitializer {
         return;
       }
 
-      // Execute initialization
-      await this.executeInitialization(targetDir, baseDir, projectInfo, selectedPlugins, pluginConfigs);
-
-      // Show completion message
-      this.showCompletionMessage(targetDir, baseDir);
+      // Execute initialization (with dependency checker for tool installation)
+      await this.executeInitialization(
+        targetDir,
+        baseDir,
+        projectInfo,
+        selectedPlugins,
+        pluginConfigs,
+        depChecker,
+        depStatuses
+      );
 
       // Create marker file
       await createMarker(targetDir, baseDir, projectInfo.name);
@@ -306,8 +327,18 @@ export class InteractiveInitializer {
    *
    * Includes conflict detection - when selecting a plugin, conflicting plugins
    * are automatically deselected with a warning shown to the user.
+   *
+   * @param currentStep Current step number
+   * @param totalSteps Total number of steps (optional)
+   * @param depStatuses Map of plugin dependency statuses (optional, for showing install hints)
+   * @param visiblePlugins Pre-filtered list of visible plugins (optional, defaults to all plugins)
    */
-  private async promptPluginSelection(currentStep: number, totalSteps?: number): Promise<string[]> {
+  private async promptPluginSelection(
+    currentStep: number,
+    totalSteps?: number,
+    depStatuses?: Map<string, PluginDependencyStatus>,
+    visiblePlugins?: Plugin[]
+  ): Promise<string[]> {
     const L = t();
     const stepLabel = totalSteps ? `${L.common.step({ current: currentStep, total: totalSteps })}` : `Step ${currentStep}`;
     console.log();
@@ -315,7 +346,7 @@ export class InteractiveInitializer {
     console.log('─'.repeat(60));
     console.log();
 
-    const availablePlugins = this.pluginRegistry.getAll();
+    const availablePlugins = visiblePlugins ?? this.pluginRegistry.getAll();
 
     // Build conflict map for quick lookup
     const conflictMap = this.buildConflictMap(availablePlugins);
@@ -327,12 +358,13 @@ export class InteractiveInitializer {
       console.log();
     }
 
-    // Create choices with conflict detection
+    // Create choices with conflict detection and dependency status
     const choices = availablePlugins.map((plugin) => {
       const isHeavy = plugin.meta.heavyweight;
       const conflictsWith = conflictMap.get(plugin.meta.name) || [];
+      const status = depStatuses?.get(plugin.meta.name);
 
-      // Build description with heavyweight indicator and conflicts
+      // Build description with heavyweight indicator, conflicts, and dependency info
       let description = plugin.meta.description;
       if (isHeavy) {
         description = `${L.prompts.featureSelect.heavyweightLabel()} ${description}`;
@@ -341,11 +373,24 @@ export class InteractiveInitializer {
         description += chalk.gray(` ${L.prompts.featureSelect.conflictsWith({ plugins: conflictsWith.join(', ') })}`);
       }
 
+      // Add dependency install hint if there are tools to install
+      if (status?.toInstall && status.toInstall.length > 0) {
+        const toolNames = status.toInstall.map(d => d.name).join(', ');
+        description += chalk.blue(` ${L.dependency.willInstall({ tools: toolNames })}`);
+      }
+
+      // Determine if option should be disabled
+      let disabled: boolean | string = false;
+      if (status && !status.available) {
+        disabled = status.disabledReason || L.dependency.missing();
+      }
+
       return {
         name: plugin.meta.name,
         value: plugin.meta.name,
         description,
         checked: plugin.meta.recommended || false,
+        disabled,
       };
     });
 
@@ -559,14 +604,26 @@ export class InteractiveInitializer {
    * Handles both lightweight and heavyweight plugins:
    * 1. Lightweight plugins are executed first (standard lifecycle)
    * 2. Heavyweight plugins are executed last (with file protection/merging)
+   *
+   * @param targetDir Target directory for initialization
+   * @param baseDir Base directory name (e.g., '.agent')
+   * @param projectInfo Project information
+   * @param selectedPlugins Array of selected plugin names
+   * @param pluginConfigs Map of plugin configurations
+   * @param depChecker Dependency checker instance (optional, for tool installation)
+   * @param depStatuses Map of plugin dependency statuses (optional)
    */
   private async executeInitialization(
     targetDir: string,
     baseDir: string,
     projectInfo: ProjectInfo,
     selectedPlugins: string[],
-    pluginConfigs: Map<string, PluginConfig>
+    pluginConfigs: Map<string, PluginConfig>,
+    depChecker?: DependencyChecker,
+    depStatuses?: Map<string, PluginDependencyStatus>
   ): Promise<void> {
+    const L = t();
+
     // Load all plugins
     const allPlugins = selectedPlugins
       .map((name) => this.pluginRegistry.get(name))
@@ -575,13 +632,33 @@ export class InteractiveInitializer {
     // Separate lightweight and heavyweight plugins
     const { lightweight, heavyweight } = separatePluginsByWeight(allPlugins);
 
-    // Determine progress steps based on whether we have heavyweight plugins
+    // Check if there are tools to install
+    const toolsToInstall = depChecker && depStatuses
+      ? depChecker.getToolsToInstall(allPlugins, depStatuses)
+      : [];
+
+    // Check if there are init commands to run (including legacy MCP servers)
+    const hasInitCommands = allPlugins.some(p =>
+      (p.initCommands && p.initCommands.length > 0) ||
+      (p.mcpServers && p.mcpServers.length > 0)
+    );
+
+    // Determine progress steps based on what needs to be done
     const progressSteps = [
       'Creating directory structure',
-      'Initializing lightweight plugins',
-      'Writing plugin outputs',
-      'Writing rules files',
     ];
+
+    if (toolsToInstall.length > 0) {
+      progressSteps.push('Installing dependencies');
+    }
+
+    progressSteps.push('Initializing lightweight plugins');
+    progressSteps.push('Writing plugin outputs');
+    progressSteps.push('Writing rules files');
+
+    if (hasInitCommands) {
+      progressSteps.push('Running init commands');
+    }
 
     if (heavyweight.length > 0) {
       progressSteps.push('Initializing heavyweight plugins');
@@ -625,7 +702,36 @@ export class InteractiveInitializer {
 
       progress.nextStep();
 
-      // Step 2: Initialize lightweight plugins (standard lifecycle)
+      // Step 2 (optional): Install dependencies
+      const installedDependencies: string[] = [];
+      if (toolsToInstall.length > 0 && depChecker) {
+        logger.info(L.dependency.checking());
+
+        const installResults = await depChecker.installTools(
+          toolsToInstall,
+          (tool, status) => {
+            if (status === 'installing') {
+              logger.info(L.dependency.installing({ name: tool }));
+            } else if (status === 'success') {
+              logger.success(`  ✓ ${L.dependency.installed({ name: tool })}`);
+              installedDependencies.push(tool);
+            } else {
+              logger.warning(`  ⚠ ${tool} installation failed`);
+            }
+          }
+        );
+
+        // Log any failures
+        for (const [name, result] of installResults) {
+          if (!result.success && result.error) {
+            logger.warning(L.dependency.installFailed({ name, error: result.error }));
+          }
+        }
+
+        progress.nextStep();
+      }
+
+      // Step 3: Initialize lightweight plugins (standard lifecycle)
       // Set loaded plugins (all plugins, so configs are available)
       this.pluginLoader.setLoadedPlugins(allPlugins);
 
@@ -682,16 +788,54 @@ export class InteractiveInitializer {
       await rulesWriter.writeAllPluginRules(lightweight, pluginConfigs, context);
       progress.nextStep();
 
-      // Step 5: Initialize heavyweight plugins (if any)
+      // Step 5 (optional): Run init commands (including MCP server registration)
+      let initCommandResults: InitCommandResult[] = [];
+      if (hasInitCommands) {
+        const commandRunner = new InitCommandRunner(context.logger, targetDir, projectInfo.name);
+        initCommandResults = await commandRunner.runAllCommands(allPlugins, pluginConfigs);
+
+        // Store init command results in shared context for post-init collector
+        context.shared.set('init_command_results', initCommandResults);
+
+        // Also store MCP-specific results for backward compatibility
+        const mcpResults = initCommandResults
+          .filter(r => r.category === 'mcp')
+          .map(r => ({
+            name: r.name.replace(/^mcp-/, ''),
+            scope: 'project' as const, // Default scope for display purposes
+            success: r.success,
+          }));
+        if (mcpResults.length > 0) {
+          context.shared.set('mcp_results', mcpResults);
+        }
+
+        progress.nextStep();
+      }
+
+      // Store installed dependencies in shared context for post-init collector
+      if (installedDependencies.length > 0) {
+        context.shared.set('installed_dependencies', installedDependencies);
+      }
+
+      // Step 6: Initialize heavyweight plugins (if any)
       if (heavyweight.length > 0) {
         await this.executeHeavyweightPlugins(heavyweight, context, targetDir);
         progress.nextStep();
       }
 
-      // Step 6: Finalize
+      // Step 7: Finalize and show enhanced completion message
       progress.nextStep();
 
       progress.succeed('Initialization complete!');
+
+      // Show enhanced completion message with all collected data
+      await this.showEnhancedCompletionMessage(
+        targetDir,
+        baseDir,
+        allPlugins,
+        pluginConfigs,
+        context
+      );
     } catch (error) {
       progress.fail('Initialization failed');
       throw error;
@@ -795,5 +939,136 @@ export class InteractiveInitializer {
     }
 
     return commands;
+  }
+
+  /**
+   * Show enhanced completion message with detailed post-init information
+   *
+   * This method collects and displays comprehensive information about:
+   * - Files created
+   * - MCP servers registered
+   * - Slash commands available
+   * - Skills available
+   * - Manual steps required
+   * - Warnings from plugins
+   * - Generic next steps
+   *
+   * @param targetDir Target directory for initialization
+   * @param baseDir Base directory name (e.g., '.agent')
+   * @param plugins Array of all selected plugins
+   * @param pluginConfigs Map of plugin configurations
+   * @param context Plugin context
+   */
+  private async showEnhancedCompletionMessage(
+    targetDir: string,
+    baseDir: string,
+    plugins: Plugin[],
+    pluginConfigs: Map<string, PluginConfig>,
+    context: PluginContext
+  ): Promise<void> {
+    const L = t();
+    const collector = new PostInitCollector();
+    const data = await collector.collectAll(plugins, pluginConfigs, context);
+
+    console.log();
+    console.log(chalk.green.bold('🎉 ' + L.prompts.complete.title()));
+    console.log('─'.repeat(60));
+    console.log();
+
+    // Section 1: Files Created
+    console.log(chalk.bold(L.prompts.complete.filesCreated()));
+    console.log(chalk.gray(`  ${CLAUDE_DIR}/${CLAUDE_SUBDIRS.RULES}/  - Rules for Claude behavior`));
+    console.log(chalk.gray(`  ${CLAUDE_DIR}/${CLAUDE_SUBDIRS.COMMANDS}/  - Slash commands`));
+    console.log(chalk.gray(`  ${baseDir}/  - Project data and configuration`));
+    console.log();
+
+    // Section 2: MCP Servers (if any)
+    if (data.mcpServers.length > 0) {
+      console.log(chalk.bold('MCP Servers Registered:'));
+      for (const server of data.mcpServers) {
+        const status = server.success ? chalk.green('✓') : chalk.red('✗');
+        console.log(chalk.gray(`  ${status} ${server.name} (${server.scope})`));
+      }
+      console.log();
+    }
+
+    // Section 3: Slash Commands
+    if (data.slashCommands.length > 0) {
+      console.log(chalk.bold(L.prompts.complete.slashCommands()));
+      for (const cmd of data.slashCommands) {
+        const hint = cmd.argumentHint ? ` ${cmd.argumentHint}` : '';
+        console.log(chalk.gray(L.prompts.complete.commandItem({ name: cmd.name, hint, description: cmd.description })));
+      }
+      console.log();
+    }
+
+    // Section 4: Skills Available
+    if (data.skills.length > 0) {
+      console.log(chalk.bold('Skills Available:'));
+      for (const skill of data.skills) {
+        console.log(chalk.gray(`  - ${skill.name}: ${skill.description}`));
+      }
+      console.log();
+    }
+
+    // Section 5: Installed Dependencies (if any)
+    if (data.installedDependencies.length > 0) {
+      console.log(chalk.bold('Dependencies Installed:'));
+      for (const dep of data.installedDependencies) {
+        console.log(chalk.gray(`  - ${dep}`));
+      }
+      console.log();
+    }
+
+    // Section 6: Plugin Messages (if any)
+    if (data.messages.length > 0) {
+      console.log(chalk.bold('Plugin Messages:'));
+      for (const { pluginName, message } of data.messages) {
+        console.log(chalk.gray(`  [${pluginName}] ${message}`));
+      }
+      console.log();
+    }
+
+    // Section 7: Manual Steps Required (yellow, numbered)
+    const requiredSteps = data.manualSteps.filter(s => !s.optional);
+    if (requiredSteps.length > 0) {
+      console.log(chalk.bold.yellow('Manual Steps Required:'));
+      for (let i = 0; i < requiredSteps.length; i++) {
+        const step = requiredSteps[i];
+        console.log(chalk.yellow(`  ${i + 1}. ${step.description}`));
+        console.log(chalk.cyan(`     $ ${step.command}`));
+      }
+      console.log();
+    }
+
+    // Section 8: Optional Steps (gray)
+    const optionalSteps = data.manualSteps.filter(s => s.optional);
+    if (optionalSteps.length > 0) {
+      console.log(chalk.bold.gray('Optional Steps:'));
+      for (const step of optionalSteps) {
+        console.log(chalk.gray(`  - ${step.description}`));
+        console.log(chalk.gray(`    $ ${step.command}`));
+      }
+      console.log();
+    }
+
+    // Section 9: Warnings (yellow)
+    if (data.warnings.length > 0) {
+      console.log(chalk.bold.yellow('Warnings:'));
+      for (const { pluginName, warning } of data.warnings) {
+        console.log(chalk.yellow(`  [${pluginName}] ${warning}`));
+      }
+      console.log();
+    }
+
+    // Section 10: Next Steps (generic)
+    console.log(chalk.bold(L.prompts.complete.nextSteps()));
+    console.log(chalk.gray(`  1. Review rules in ${CLAUDE_DIR}/${CLAUDE_SUBDIRS.RULES}/`));
+    console.log(chalk.gray(L.prompts.complete.step2()));
+    if (data.slashCommands.length > 0) {
+      console.log(chalk.gray(L.prompts.complete.step3()));
+    }
+    console.log(chalk.gray(L.prompts.complete.step4()));
+    console.log();
   }
 }

@@ -34,6 +34,30 @@ const en = {
     },
   },
 
+  dependency: {
+    checking: 'Checking dependencies...',
+    willInstall: '[will install: {tools:string}]',
+    missing: 'missing required tools',
+    installing: 'Installing {name:string}...',
+    installed: '{name:string} installed',
+    installFailed: 'Failed to install {name:string}: {error:string}',
+  },
+
+  mcp: {
+    registering: 'Registering MCP servers...',
+    registered: 'Registered MCP server: {name:string}',
+    failed: 'Failed to register MCP server {name:string}',
+  },
+
+  initCommand: {
+    running: 'Running initialization commands...',
+    success: '{name:string}',
+    failed: '{name:string} failed: {error:string}',
+    skipped: 'Skipped: {name:string}',
+    summary: 'Init commands: {success:number} succeeded, {failed:number} failed',
+    completed: 'Completed {count:number} initialization command(s)',
+  },
+
   prompts: {
     projectInfo: {
       stepTitle: 'Project Information',
@@ -99,6 +123,13 @@ const en = {
       step2: '  • Start chatting with Claude in this project',
       step3: '  • Try slash commands like /memory-search or /task-status',
       step4: "  • Run 'claude-init --help' for more commands",
+      mcpServers: 'MCP servers registered:',
+      skillsAvailable: 'Skills available:',
+      manualStepsRequired: 'Manual steps required:',
+      optionalSteps: 'Optional steps:',
+      warnings: 'Warnings:',
+      pluginMessages: 'Plugin messages:',
+      installedDeps: 'Dependencies installed:',
     },
     progress: {
       complete: 'Complete',

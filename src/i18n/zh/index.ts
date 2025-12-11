@@ -34,6 +34,30 @@ const zh: Translation = {
     },
   },
 
+  dependency: {
+    checking: '检查依赖...',
+    willInstall: '[将安装：{tools}]',
+    missing: '缺少必要工具',
+    installing: '正在安装 {name}...',
+    installed: '{name} 已安装',
+    installFailed: '安装 {name} 失败：{error}',
+  },
+
+  mcp: {
+    registering: '注册 MCP 服务器...',
+    registered: '已注册 MCP 服务器：{name}',
+    failed: '注册 MCP 服务器 {name} 失败',
+  },
+
+  initCommand: {
+    running: '正在执行初始化命令...',
+    success: '{name}',
+    failed: '{name} 失败：{error}',
+    skipped: '已跳过：{name}',
+    summary: '初始化命令：{success} 成功，{failed} 失败',
+    completed: '已完成 {count} 个初始化命令',
+  },
+
   prompts: {
     projectInfo: {
       stepTitle: '项目信息',
@@ -99,6 +123,13 @@ const zh: Translation = {
       step2: '  • 在此项目中开始与 Claude 对话',
       step3: '  • 尝试使用斜杠命令，如 /memory-search 或 /task-status',
       step4: "  • 运行 'claude-init --help' 查看更多命令",
+      mcpServers: '已注册的 MCP 服务器：',
+      skillsAvailable: '可用技能：',
+      manualStepsRequired: '需要手动执行的步骤：',
+      optionalSteps: '可选步骤：',
+      warnings: '警告：',
+      pluginMessages: '插件消息：',
+      installedDeps: '已安装的依赖：',
     },
     progress: {
       complete: '完成',

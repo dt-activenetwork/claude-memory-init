@@ -111,6 +111,86 @@ type RootTranslation = {
 			fatalError: string
 		}
 	}
+	dependency: {
+		/**
+		 * C​h​e​c​k​i​n​g​ ​d​e​p​e​n​d​e​n​c​i​e​s​.​.​.
+		 */
+		checking: string
+		/**
+		 * [​w​i​l​l​ ​i​n​s​t​a​l​l​:​ ​{​t​o​o​l​s​}​]
+		 * @param {string} tools
+		 */
+		willInstall: RequiredParams<'tools'>
+		/**
+		 * m​i​s​s​i​n​g​ ​r​e​q​u​i​r​e​d​ ​t​o​o​l​s
+		 */
+		missing: string
+		/**
+		 * I​n​s​t​a​l​l​i​n​g​ ​{​n​a​m​e​}​.​.​.
+		 * @param {string} name
+		 */
+		installing: RequiredParams<'name'>
+		/**
+		 * {​n​a​m​e​}​ ​i​n​s​t​a​l​l​e​d
+		 * @param {string} name
+		 */
+		installed: RequiredParams<'name'>
+		/**
+		 * F​a​i​l​e​d​ ​t​o​ ​i​n​s​t​a​l​l​ ​{​n​a​m​e​}​:​ ​{​e​r​r​o​r​}
+		 * @param {string} error
+		 * @param {string} name
+		 */
+		installFailed: RequiredParams<'error' | 'name'>
+	}
+	mcp: {
+		/**
+		 * R​e​g​i​s​t​e​r​i​n​g​ ​M​C​P​ ​s​e​r​v​e​r​s​.​.​.
+		 */
+		registering: string
+		/**
+		 * R​e​g​i​s​t​e​r​e​d​ ​M​C​P​ ​s​e​r​v​e​r​:​ ​{​n​a​m​e​}
+		 * @param {string} name
+		 */
+		registered: RequiredParams<'name'>
+		/**
+		 * F​a​i​l​e​d​ ​t​o​ ​r​e​g​i​s​t​e​r​ ​M​C​P​ ​s​e​r​v​e​r​ ​{​n​a​m​e​}
+		 * @param {string} name
+		 */
+		failed: RequiredParams<'name'>
+	}
+	initCommand: {
+		/**
+		 * R​u​n​n​i​n​g​ ​i​n​i​t​i​a​l​i​z​a​t​i​o​n​ ​c​o​m​m​a​n​d​s​.​.​.
+		 */
+		running: string
+		/**
+		 * {​n​a​m​e​}
+		 * @param {string} name
+		 */
+		success: RequiredParams<'name'>
+		/**
+		 * {​n​a​m​e​}​ ​f​a​i​l​e​d​:​ ​{​e​r​r​o​r​}
+		 * @param {string} error
+		 * @param {string} name
+		 */
+		failed: RequiredParams<'error' | 'name'>
+		/**
+		 * S​k​i​p​p​e​d​:​ ​{​n​a​m​e​}
+		 * @param {string} name
+		 */
+		skipped: RequiredParams<'name'>
+		/**
+		 * I​n​i​t​ ​c​o​m​m​a​n​d​s​:​ ​{​s​u​c​c​e​s​s​}​ ​s​u​c​c​e​e​d​e​d​,​ ​{​f​a​i​l​e​d​}​ ​f​a​i​l​e​d
+		 * @param {number} failed
+		 * @param {number} success
+		 */
+		summary: RequiredParams<'failed' | 'success'>
+		/**
+		 * C​o​m​p​l​e​t​e​d​ ​{​c​o​u​n​t​}​ ​i​n​i​t​i​a​l​i​z​a​t​i​o​n​ ​c​o​m​m​a​n​d​(​s​)
+		 * @param {number} count
+		 */
+		completed: RequiredParams<'count'>
+	}
 	prompts: {
 		projectInfo: {
 			/**
@@ -345,6 +425,34 @@ type RootTranslation = {
 			 *  ​ ​•​ ​R​u​n​ ​'​c​l​a​u​d​e​-​i​n​i​t​ ​-​-​h​e​l​p​'​ ​f​o​r​ ​m​o​r​e​ ​c​o​m​m​a​n​d​s
 			 */
 			step4: string
+			/**
+			 * M​C​P​ ​s​e​r​v​e​r​s​ ​r​e​g​i​s​t​e​r​e​d​:
+			 */
+			mcpServers: string
+			/**
+			 * S​k​i​l​l​s​ ​a​v​a​i​l​a​b​l​e​:
+			 */
+			skillsAvailable: string
+			/**
+			 * M​a​n​u​a​l​ ​s​t​e​p​s​ ​r​e​q​u​i​r​e​d​:
+			 */
+			manualStepsRequired: string
+			/**
+			 * O​p​t​i​o​n​a​l​ ​s​t​e​p​s​:
+			 */
+			optionalSteps: string
+			/**
+			 * W​a​r​n​i​n​g​s​:
+			 */
+			warnings: string
+			/**
+			 * P​l​u​g​i​n​ ​m​e​s​s​a​g​e​s​:
+			 */
+			pluginMessages: string
+			/**
+			 * D​e​p​e​n​d​e​n​c​i​e​s​ ​i​n​s​t​a​l​l​e​d​:
+			 */
+			installedDeps: string
 		}
 		progress: {
 			/**
@@ -1663,6 +1771,72 @@ export type TranslationFunctions = {
 			fatalError: () => LocalizedString
 		}
 	}
+	dependency: {
+		/**
+		 * Checking dependencies...
+		 */
+		checking: () => LocalizedString
+		/**
+		 * [will install: {tools}]
+		 */
+		willInstall: (arg: { tools: string }) => LocalizedString
+		/**
+		 * missing required tools
+		 */
+		missing: () => LocalizedString
+		/**
+		 * Installing {name}...
+		 */
+		installing: (arg: { name: string }) => LocalizedString
+		/**
+		 * {name} installed
+		 */
+		installed: (arg: { name: string }) => LocalizedString
+		/**
+		 * Failed to install {name}: {error}
+		 */
+		installFailed: (arg: { error: string, name: string }) => LocalizedString
+	}
+	mcp: {
+		/**
+		 * Registering MCP servers...
+		 */
+		registering: () => LocalizedString
+		/**
+		 * Registered MCP server: {name}
+		 */
+		registered: (arg: { name: string }) => LocalizedString
+		/**
+		 * Failed to register MCP server {name}
+		 */
+		failed: (arg: { name: string }) => LocalizedString
+	}
+	initCommand: {
+		/**
+		 * Running initialization commands...
+		 */
+		running: () => LocalizedString
+		/**
+		 * {name}
+		 */
+		success: (arg: { name: string }) => LocalizedString
+		/**
+		 * {name} failed: {error}
+		 */
+		failed: (arg: { error: string, name: string }) => LocalizedString
+		/**
+		 * Skipped: {name}
+		 */
+		skipped: (arg: { name: string }) => LocalizedString
+		/**
+		 * Init commands: {success} succeeded, {failed} failed
+		 */
+		summary: (arg: { failed: number, success: number }) => LocalizedString
+		/**
+		 * Completed {count} initialization command(s)
+		 */
+		completed: (arg: { count: number }) => LocalizedString
+	}
 	prompts: {
 		projectInfo: {
 			/**
@@ -1881,6 +2055,34 @@ export type TranslationFunctions = {
 			 *   • Run 'claude-init --help' for more commands
 			 */
 			step4: () => LocalizedString
+			/**
+			 * MCP servers registered:
+			 */
+			mcpServers: () => LocalizedString
+			/**
+			 * Skills available:
+			 */
+			skillsAvailable: () => LocalizedString
+			/**
+			 * Manual steps required:
+			 */
+			manualStepsRequired: () => LocalizedString
+			/**
+			 * Optional steps:
+			 */
+			optionalSteps: () => LocalizedString
+			/**
+			 * Warnings:
+			 */
+			warnings: () => LocalizedString
+			/**
+			 * Plugin messages:
+			 */
+			pluginMessages: () => LocalizedString
+			/**
+			 * Dependencies installed:
+			 */
+			installedDeps: () => LocalizedString
 		}
 		progress: {
 			/**

@@ -19,8 +19,8 @@ export interface CheckboxOption {
   description?: string;
   /** Whether the option is checked by default */
   checked?: boolean;
-  /** Whether the option is disabled (cannot be selected) */
-  disabled?: boolean;
+  /** Whether the option is disabled (cannot be selected), or a string explaining why */
+  disabled?: boolean | string;
 }
 
 /**
@@ -52,6 +52,8 @@ export const checkboxList = async (
         name: formatOptionName(opt.name, opt.description),
         value: opt.value,
         checked: opt.checked ?? false,
+        // Inquirer supports both boolean and string for disabled
+        // When string is provided, it's shown as the reason for being disabled
         disabled: opt.disabled ?? false
       })),
       pageSize: 15,

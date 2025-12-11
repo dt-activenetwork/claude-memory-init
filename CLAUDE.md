@@ -110,6 +110,11 @@ claude-memory-init/
 │   │   ├── rules-writer.ts     # .claude/rules/ file generation
 │   │   ├── output-router.ts    # Output path routing
 │   │   ├── resource-writer.ts  # Resource file writing
+│   │   ├── system-detector.ts  # Core OS/command detection utilities
+│   │   ├── dependency-checker.ts  # Plugin tool dependency checking
+│   │   ├── init-command-runner.ts  # Init command execution (incl. MCP)
+│   │   ├── post-init-collector.ts  # Completion message aggregation
+│   │   ├── plugin-config.ts    # CLI configuration loading
 │   │   ├── ui.ts               # UI Facade (for testability)
 │   │   ├── template-engine.ts  # Template rendering
 │   │   ├── marker.ts           # Project marker
@@ -221,7 +226,11 @@ interface Plugin {
     heavyweight?: boolean;     // Has external init command
     conflicts?: string[];      // Conflicting plugins
     rulesPriority?: number;    // Priority for .claude/rules/ (0-99)
+    toolDependencies?: ToolDependency[];  // Required CLI tools (v2.2+)
   };
+
+  // Initialization commands (v2.2+)
+  initCommands?: InitCommand[];  // Commands to run during init (incl. MCP)
 
   // Configuration flow (structured)
   configuration?: {
@@ -262,7 +271,58 @@ interface Plugin {
   // Heavyweight plugin methods
   getHeavyweightConfig?(context: PluginContext): HeavyweightPluginConfig;
 }
+
+// Tool dependency declaration (v2.2+)
+interface ToolDependency {
+  name: string;                 // Tool name (e.g., 'git', 'pnpm')
+  checkCommand?: string;        // Command to check availability
+  optional?: boolean;           // If true, plugin works without it
+  installCommands?: {           // Platform-specific install commands
+    darwin?: string;
+    linux?: string;
+    win32?: string;
+  };
+}
+
+// Init command declaration (v2.2+)
+interface InitCommand {
+  name: string;                 // Unique command identifier
+  command: string;              // Command to execute
+  description?: string;         // Human-readable description
+  category?: string;            // Grouping (e.g., 'mcp', 'setup')
+  optional?: boolean;           // If true, failure is non-fatal
+  condition?: (config) => boolean;  // Conditional execution
+}
+
+// Helper for MCP registration
+function createMCPCommand(
+  serverName: string,
+  serverCommand: string,
+  options?: { scope?: 'project' | 'user' }
+): InitCommand;
 ```
+
+### CLI Configuration
+
+Plugin visibility can be configured via `.claude-init.json`:
+
+```json
+{
+  "plugins": {
+    "disabled": ["claude-flow", "pma-gh"],
+    "enabled": ["system-detector", "git"]
+  }
+}
+```
+
+**Configuration file search order** (priority from high to low):
+1. Project: `.claude-init.json`
+2. Project: `.claude-init/config.json`
+3. User: `~/.claude-init/config.json`
+
+**Notes:**
+- `enabled` (whitelist) takes precedence over `disabled` (blacklist)
+- The `core` plugin cannot be disabled
 
 ### Interactive Flow
 
@@ -377,5 +437,5 @@ pnpm test:coverage
 ## Status
 
 **Version**: 2.2.0-alpha
-**Status**: Rules-based architecture + Plugin system (396 unit tests + 49 BDD scenarios passed)
+**Status**: Rules-based architecture + Plugin system (543 unit tests + 49 BDD scenarios passed)
 **Last Updated**: 2025-12-11

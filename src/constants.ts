@@ -201,3 +201,23 @@ export const DEFAULT_OUTPUT_ROUTES = {
  * Application version
  */
 export const APP_VERSION = '2.2.0-alpha';
+
+/**
+ * CLI configuration file names (in order of priority)
+ *
+ * Used for plugin visibility configuration.
+ */
+export const CLI_CONFIG_FILES = [
+  '.claude-init.json',
+  '.claude-init/config.json',
+] as const;
+
+/**
+ * User-level CLI configuration directory
+ */
+export const USER_CLI_CONFIG_DIR = '.claude-init';
+
+/**
+ * User-level CLI configuration file name
+ */
+export const USER_CLI_CONFIG_FILE = 'config.json';

@@ -408,6 +408,145 @@ export interface PluginMeta {
    * @see RULES_PRIORITY constants
    */
   rulesPriority?: number;
+
+  /**
+   * External CLI tool dependencies required by this plugin
+   *
+   * The dependency checker will verify these tools are available before
+   * allowing the plugin to be selected. If a tool is missing but can be
+   * installed, the user will be prompted to install it.
+   *
+   * @example
+   * toolDependencies: [
+   *   {
+   *     name: 'ast-grep',
+   *     checkCommand: 'ast-grep --version',
+   *     installCommands: {
+   *       darwin: 'brew install ast-grep',
+   *       linux: 'cargo install ast-grep --locked',
+   *     },
+   *   },
+   * ]
+   */
+  toolDependencies?: ToolDependency[];
+}
+
+// ============================================================================
+// Tool Dependency Types
+// ============================================================================
+
+/**
+ * External CLI tool dependency
+ *
+ * Defines a CLI tool that a plugin requires to function properly.
+ * The dependency checker uses this to verify availability and
+ * offer installation if possible.
+ */
+export interface ToolDependency {
+  /**
+   * Tool name (e.g., 'ast-grep', 'git', 'uv')
+   *
+   * Used for display and as the default command to check.
+   */
+  name: string;
+
+  /**
+   * Command to check if the tool exists (optional)
+   *
+   * If not specified, defaults to `{name} --version`.
+   * Should be a command that exits with 0 if the tool is installed.
+   *
+   * @example 'ast-grep --version'
+   * @example 'pip --version || pip3 --version'
+   */
+  checkCommand?: string;
+
+  /**
+   * Platform-specific install commands
+   *
+   * Provides install instructions for different operating systems.
+   * If not specified for a platform, the tool is considered
+   * not automatically installable on that platform.
+   */
+  installCommands?: {
+    /** macOS install command (e.g., 'brew install tool') */
+    darwin?: string;
+    /** Linux install command (e.g., 'apt install tool') */
+    linux?: string;
+    /** Windows install command (e.g., 'winget install tool') */
+    win32?: string;
+  };
+
+  /**
+   * Whether this dependency is optional
+   *
+   * If true, a missing tool will show a warning but won't prevent
+   * the plugin from being selected. If false (default), the plugin
+   * will be disabled if the tool is unavailable.
+   *
+   * @default false
+   */
+  optional?: boolean;
+}
+
+/**
+ * Result of checking a single tool dependency
+ */
+export interface ToolCheckResult {
+  /** Tool name */
+  name: string;
+
+  /** Whether the tool is available in the system */
+  available: boolean;
+
+  /** Whether the tool can be automatically installed */
+  canInstall: boolean;
+
+  /** Install command for the current platform (if installable) */
+  installCommand?: string;
+
+  /** Tool version (if available and detected) */
+  version?: string;
+}
+
+/**
+ * Overall dependency status for a plugin
+ */
+export interface PluginDependencyStatus {
+  /** Plugin name */
+  pluginName: string;
+
+  /**
+   * Whether the plugin can be selected
+   *
+   * True if all required dependencies are either available or installable.
+   */
+  available: boolean;
+
+  /**
+   * Names of required dependencies that cannot be satisfied
+   *
+   * These are dependencies that are missing and cannot be automatically
+   * installed on the current platform.
+   */
+  missingRequired: string[];
+
+  /**
+   * Dependencies that will need to be installed
+   *
+   * These are missing dependencies that CAN be installed on the
+   * current platform. The user will be prompted to install them.
+   */
+  toInstall: ToolDependency[];
+
+  /**
+   * Human-readable reason why the plugin is disabled
+   *
+   * Only set when `available` is false. Used for UI display.
+   *
+   * @example 'Missing: ast-grep (not available on this platform)'
+   */
+  disabledReason?: string;
 }
 
 /**
@@ -591,6 +730,155 @@ export interface Skill {
    * @example 'skills/memory-indexer.md'
    */
   templatePath: string;
+}
+
+// ============================================================================
+// Init Command Types
+// ============================================================================
+
+/**
+ * Command to execute during initialization
+ *
+ * Plugins can declare commands to run during the init phase.
+ * Commands are executed after directory creation but before completion.
+ *
+ * This is a generalization of the old MCPServerConfig - MCP registration
+ * is just one use case. Other uses include running setup scripts,
+ * initializing databases, etc.
+ */
+export interface InitCommand {
+  /**
+   * Unique identifier for this command
+   *
+   * @example 'mcp-serena', 'setup-db', 'install-deps'
+   */
+  name: string;
+
+  /**
+   * Command to execute (supports placeholders)
+   *
+   * Placeholders:
+   * - $(pwd): Shell-expanded at runtime (preserved for shell)
+   * - ${PROJECT_ROOT}: Replaced by CLI with actual project path
+   * - ${PROJECT_NAME}: Replaced by CLI with project name
+   *
+   * @example 'claude mcp add --scope project serena -- uvx serena start-mcp-server --project "$(pwd)"'
+   * @example 'npm run setup'
+   */
+  command: string;
+
+  /**
+   * Additional arguments (optional)
+   *
+   * These are appended to the command.
+   */
+  args?: string[];
+
+  /**
+   * Human-readable description for UI display
+   *
+   * Shown during initialization summary and post-init messages.
+   */
+  description?: string;
+
+  /**
+   * Category for grouping in completion message
+   *
+   * Commands with the same category are grouped together in the output.
+   *
+   * @example 'mcp', 'setup', 'config'
+   */
+  category?: string;
+
+  /**
+   * If true, failure doesn't show as error
+   *
+   * Optional commands that fail will show a warning instead of an error,
+   * and won't cause the initialization to be considered failed.
+   *
+   * @default false
+   */
+  optional?: boolean;
+
+  /**
+   * Condition function to determine if this command should run
+   *
+   * Called with the plugin's configuration. If returns false, the command
+   * is skipped during execution.
+   *
+   * @example (config) => config.options.enableFeature === true
+   */
+  condition?: (config: PluginConfig) => boolean;
+}
+
+// ============================================================================
+// MCP Server Types (Legacy - Deprecated)
+// ============================================================================
+
+/**
+ * MCP Server configuration
+ *
+ * @deprecated Use InitCommand instead. This type alias will be removed in v3.0.
+ *
+ * For backward compatibility, MCPServerConfig is now an alias for InitCommand.
+ * The 'scope' field is no longer directly supported - use createMCPCommand()
+ * helper function to create MCP registration commands.
+ */
+export type MCPServerConfig = InitCommand & {
+  /**
+   * Scope for MCP server registration (legacy field)
+   *
+   * - 'project': Registered for current project only (default)
+   * - 'user': Registered globally for the user
+   *
+   * @deprecated Build the full `claude mcp add` command in the command field instead.
+   * @default 'project'
+   */
+  scope?: 'project' | 'user';
+};
+
+// ============================================================================
+// Post-Init Contribution Types
+// ============================================================================
+
+/**
+ * Manual step that requires user action
+ *
+ * Used to communicate steps that cannot be automated and require
+ * the user to perform them manually after initialization.
+ */
+export interface ManualStep {
+  /** Human-readable description of what the user needs to do */
+  description: string;
+
+  /** Command to run (for copy-paste) */
+  command: string;
+
+  /** Whether this step is optional (default: false) */
+  optional?: boolean;
+
+  /** Category for grouping (e.g., 'skill-install', 'mcp-config') */
+  category?: string;
+}
+
+/**
+ * Post-initialization contribution from a plugin
+ *
+ * Plugins can provide information to be displayed after initialization
+ * completes, including manual steps, messages, and warnings.
+ */
+export interface PostInitContribution {
+  /** Plugin name for attribution */
+  pluginName: string;
+
+  /** Manual steps that require user action */
+  manualSteps?: ManualStep[];
+
+  /** Informational messages to display */
+  messages?: string[];
+
+  /** Warning messages to display */
+  warnings?: string[];
 }
 
 // ============================================================================
@@ -789,6 +1077,75 @@ export interface Plugin<TOptions = Record<string, PluginOptionValue>> {
 
   /** Gitignore patterns contribution (optional) */
   gitignore?: PluginGitignoreContribution<TOptions>;
+
+  /**
+   * Commands to execute during initialization (optional)
+   *
+   * These commands run after directory structure is created.
+   * Failures are logged but don't block initialization (unless optional: false).
+   *
+   * This is the preferred way to register MCP servers and run setup commands.
+   *
+   * @example
+   * initCommands: [
+   *   {
+   *     name: 'mcp-serena',
+   *     command: 'claude mcp add --scope project serena -- uvx serena start-mcp-server --project "$(pwd)"',
+   *     description: 'Register Serena MCP server',
+   *     category: 'mcp',
+   *   },
+   *   {
+   *     name: 'setup-db',
+   *     command: 'npm run db:init',
+   *     description: 'Initialize database',
+   *     category: 'setup',
+   *     optional: true,
+   *   },
+   * ]
+   */
+  initCommands?: InitCommand[];
+
+  /**
+   * MCP servers provided by this plugin (optional)
+   *
+   * @deprecated Use initCommands instead. This will be removed in v3.0.
+   *
+   * MCP servers are registered via `claude mcp add` during initialization.
+   * Each server configuration specifies the name, command, and scope.
+   *
+   * For new code, use initCommands with the full `claude mcp add` command,
+   * or use the createMCPCommand() helper function.
+   *
+   * @example
+   * mcpServers: [
+   *   {
+   *     name: 'serena',
+   *     command: 'uvx --from git+https://github.com/oraios/serena serena start-mcp-server --project "$(pwd)"',
+   *     scope: 'project',
+   *     description: 'Semantic code analysis',
+   *   },
+   * ]
+   */
+  mcpServers?: MCPServerConfig[];
+
+  // ============================================================================
+  // Post-Init Contribution Methods
+  // ============================================================================
+
+  /**
+   * Get post-initialization contribution
+   *
+   * Called after initialization completes to collect information for the
+   * completion message, including manual steps, messages, and warnings.
+   *
+   * @param context Plugin context
+   * @param config Plugin configuration
+   * @returns Post-init contribution or undefined if none
+   */
+  getPostInitContribution?: (
+    context: PluginContext,
+    config: PluginConfig<TOptions>
+  ) => PostInitContribution | undefined;
 
   // ============================================================================
   // Heavyweight Plugin Methods

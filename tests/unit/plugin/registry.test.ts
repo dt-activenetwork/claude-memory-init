@@ -324,6 +324,96 @@ describe('PluginRegistry', () => {
     });
   });
 
+  describe('getVisible', () => {
+    it('should return all plugins when CLI config is empty', () => {
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+
+      const visible = registry.getVisible({});
+
+      expect(visible).toHaveLength(2);
+      expect(visible).toContain(plugin1);
+      expect(visible).toContain(plugin2);
+    });
+
+    it('should filter out disabled plugins', () => {
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+      const plugin3 = createMockPlugin('plugin3', { commandName: 'cmd3' });
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+      registry.register(plugin3);
+
+      const visible = registry.getVisible({
+        plugins: {
+          disabled: ['plugin2'],
+        },
+      });
+
+      expect(visible).toHaveLength(2);
+      expect(visible.map(p => p.meta.name)).toEqual(['plugin1', 'plugin3']);
+    });
+
+    it('should only show enabled plugins in whitelist mode', () => {
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+      const plugin3 = createMockPlugin('plugin3', { commandName: 'cmd3' });
+
+      registry.register(plugin1);
+      registry.register(plugin2);
+      registry.register(plugin3);
+
+      const visible = registry.getVisible({
+        plugins: {
+          enabled: ['plugin1', 'plugin3'],
+        },
+      });
+
+      expect(visible).toHaveLength(2);
+      expect(visible.map(p => p.meta.name)).toEqual(['plugin1', 'plugin3']);
+    });
+
+    it('should always show core plugin even when disabled', () => {
+      const corePlugin = createMockPlugin('core', { commandName: 'core' });
+      const otherPlugin = createMockPlugin('other', { commandName: 'other' });
+
+      registry.register(corePlugin);
+      registry.register(otherPlugin);
+
+      const visible = registry.getVisible({
+        plugins: {
+          disabled: ['core', 'other'],
+        },
+      });
+
+      expect(visible).toHaveLength(1);
+      expect(visible[0].meta.name).toBe('core');
+    });
+
+    it('should always show core plugin even with whitelist mode', () => {
+      const corePlugin = createMockPlugin('core', { commandName: 'core' });
+      const plugin1 = createMockPlugin('plugin1', { commandName: 'cmd1' });
+      const plugin2 = createMockPlugin('plugin2', { commandName: 'cmd2' });
+
+      registry.register(corePlugin);
+      registry.register(plugin1);
+      registry.register(plugin2);
+
+      const visible = registry.getVisible({
+        plugins: {
+          enabled: ['plugin1'],
+        },
+      });
+
+      expect(visible).toHaveLength(2);
+      expect(visible.map(p => p.meta.name).sort()).toEqual(['core', 'plugin1']);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle plugin with all optional fields', () => {
       const fullPlugin = createMockPlugin('full-plugin', {

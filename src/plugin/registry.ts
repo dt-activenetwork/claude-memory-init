@@ -5,6 +5,8 @@
  */
 
 import type { Plugin, PluginConfig, CoreConfig } from './types.js';
+import type { CLIConfig } from '../core/plugin-config.js';
+import { isPluginVisible } from '../core/plugin-config.js';
 
 /**
  * Registry for managing plugins
@@ -103,6 +105,24 @@ export class PluginRegistry {
   getEnabled(config: CoreConfig): Plugin[] {
     return Array.from(this.plugins.values()).filter(
       plugin => config.plugins[plugin.meta.name]?.enabled !== false
+    );
+  }
+
+  /**
+   * Get visible plugins based on CLI configuration
+   *
+   * Filters plugins according to the visibility settings in the CLI config.
+   * Uses whitelist mode if `enabled` is specified, blacklist mode if `disabled`
+   * is specified, or shows all plugins if neither is set.
+   *
+   * Protected plugins (e.g., 'core') are always included.
+   *
+   * @param cliConfig CLI configuration with plugin visibility settings
+   * @returns Array of visible plugins
+   */
+  getVisible(cliConfig: CLIConfig): Plugin[] {
+    return Array.from(this.plugins.values()).filter(
+      plugin => isPluginVisible(plugin.meta.name, cliConfig)
     );
   }
 

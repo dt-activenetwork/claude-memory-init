@@ -28,7 +28,7 @@ Interactive CLI tool for setting up Claude in your projects with a plugin-based 
 - Modular architecture with composable plugins
 - Interactive CLI, TOON format, smart detection
 
-> **Status**: v2.2.0-alpha. Testing: 399 unit tests + 49 BDD scenarios passing.
+> **Status**: v2.2.0-alpha. Testing: 543 unit tests + 49 BDD scenarios passing.
 
 ---
 
@@ -106,6 +106,32 @@ Heavyweight plugins have their own initialization commands and may generate file
 - **Rollback Support**: Restores backups if initialization fails
 
 See [Heavyweight Plugins Design](./docs/HEAVYWEIGHT_PLUGINS.md) for details.
+
+---
+
+### Plugin Configuration
+
+You can configure which plugins are visible during initialization using a configuration file:
+
+```json
+// .claude-init.json (project-level) or ~/.claude-init/config.json (user-level)
+{
+  "plugins": {
+    "disabled": ["claude-flow", "pma-gh"],
+    "enabled": ["system-detector", "git"]
+  }
+}
+```
+
+**Configuration file search order** (priority from high to low):
+1. Project: `.claude-init.json`
+2. Project: `.claude-init/config.json`
+3. User: `~/.claude-init/config.json`
+
+**Notes:**
+- `enabled` (whitelist) takes precedence over `disabled` (blacklist)
+- The `core` plugin cannot be disabled
+- This is useful for teams that want to standardize on specific plugins
 
 ---
 
@@ -332,7 +358,10 @@ pnpm test
 - ✅ Claude Flow integration
 - ✅ PMA-GH plugin (GitHub workflow)
 - ✅ Unified resource registration
-- ✅ 399 unit tests + 49 BDD scenarios
+- ✅ Dependency detection system (auto-install CLI tools)
+- ✅ Plugin visibility configuration
+- ✅ Enhanced completion messages
+- ✅ 543 unit tests + 49 BDD scenarios
 
 **Remaining**:
 - ⏳ `memory system-add` command
@@ -408,4 +437,4 @@ MIT License - See [LICENSE](./LICENSE) for details.
 ---
 
 **Current Version**: 2.2.0-alpha
-**Last Updated**: 2025-12-10
+**Last Updated**: 2025-12-11
