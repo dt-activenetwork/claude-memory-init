@@ -55,13 +55,20 @@ Heavyweight plugins have their own initialization commands and require file prot
 
 ```
 project/
-├── AGENT.md                    # Main instructions for Claude
+├── .claude/
+│   ├── rules/                  # Claude Code native rules (v2.2+)
+│   │   ├── 00-project.md       # Project metadata
+│   │   ├── 10-system.md        # System environment
+│   │   ├── 30-git.md           # Git rules
+│   │   ├── 40-memory.md        # Memory system
+│   │   └── ...                 # Other plugin rules
+│   ├── commands/               # Slash commands
+│   └── skills/                 # Skills
 └── .agent/
     ├── config.toon             # Main configuration
     ├── system/
     │   └── config.toon         # Project system configuration
     ├── git/
-    │   ├── rules.md            # Git operation rules
     │   └── config.toon         # Git configuration
     ├── memory/
     │   ├── index/
@@ -79,11 +86,15 @@ project/
 ~/.claude/                      # User Memory (cross-project)
 ├── system/
 │   └── preferences.toon        # User system preferences
+├── rules/                      # User-level rules
 ├── preferences/                # User preferences
 └── cache/                      # Cache directory
 ```
 
-**Note**: User Memory (`~/.claude/`) stores cross-project preferences like OS info and preferred package managers, reducing re-configuration when initializing new projects.
+**Note**:
+- `.claude/rules/` uses Claude Code's native Project Rules mechanism (v2.2+)
+- Rules files are named with init.d style numbering (NN-name.md) for load order
+- User Memory (`~/.claude/`) stores cross-project preferences
 
 ## Project Structure
 
@@ -92,23 +103,20 @@ claude-memory-init/
 ├── src/
 │   ├── cli.ts                  # CLI entry point
 │   ├── index.ts                # Main module export
-│   ├── constants.ts            # Global constants
+│   ├── constants.ts            # Global constants (incl. RULES_PRIORITY)
 │   ├── core/                   # Core framework
-│   │   ├── initializer.ts      # Main initialization
-│   │   ├── interactive-initializer.ts  # Interactive flow
+│   │   ├── interactive-initializer.ts  # Interactive flow (main entry)
 │   │   ├── heavyweight-plugin-manager.ts  # Heavyweight plugin handling
+│   │   ├── rules-writer.ts     # .claude/rules/ file generation
 │   │   ├── output-router.ts    # Output path routing
 │   │   ├── resource-writer.ts  # Resource file writing
 │   │   ├── ui.ts               # UI Facade (for testability)
 │   │   ├── template-engine.ts  # Template rendering
-│   │   ├── agent-assembler.ts  # AGENT.md assembly
-│   │   ├── config-loader.ts    # Config loading
-│   │   ├── config-manager.ts   # Config management
 │   │   ├── marker.ts           # Project marker
-│   │   ├── validator.ts        # Validation
-│   │   └── exclusion.ts        # File exclusion rules
+│   │   └── validator.ts        # Validation
 │   ├── plugin/                 # Plugin system
-│   │   ├── types.ts            # Plugin interfaces (incl. heavyweight types)
+│   │   ├── types.ts            # Plugin interfaces (incl. rules, heavyweight)
+│   │   ├── schema-registry.ts  # Zod schema validation
 │   │   ├── registry.ts         # Plugin registry
 │   │   ├── loader.ts           # Plugin loader
 │   │   ├── context.ts          # Plugin context
@@ -117,6 +125,7 @@ claude-memory-init/
 │   │   ├── core/               # Essential commands (always enabled)
 │   │   ├── system-detector/    # Environment detection
 │   │   │   ├── index.ts
+│   │   │   ├── schema.ts       # Zod schema
 │   │   │   └── detectors/
 │   │   │       ├── os.ts
 │   │   │       ├── python.ts
@@ -146,7 +155,6 @@ claude-memory-init/
 │   │   └── index.ts            # i18n entry point
 │   ├── utils/                  # Utilities
 │   │   ├── file-ops.ts         # File operations
-│   │   ├── git-ops.ts          # Git operations
 │   │   ├── gitignore-manager.ts
 │   │   ├── auto-commit.ts
 │   │   ├── merge-utils.ts      # File merge utilities
@@ -156,8 +164,6 @@ claude-memory-init/
 │   └── types/
 │       └── config.ts           # Configuration types
 ├── templates/                  # Template files
-│   ├── agent/
-│   │   └── AGENT.md.template
 │   ├── commands/
 │   │   ├── core/               # Core slash commands
 │   │   ├── memory/             # Memory slash commands
@@ -179,7 +185,6 @@ claude-memory-init/
 │   ├── bdd/                    # BDD tests (Cucumber)
 │   └── integration/            # Integration tests
 ├── docs/                       # Design documentation
-├── mem/                        # Git submodule (template source)
 └── dist/                       # Compiled output
 ```
 
@@ -215,6 +220,7 @@ interface Plugin {
     recommended?: boolean;     // Show as recommended
     heavyweight?: boolean;     // Has external init command
     conflicts?: string[];      // Conflicting plugins
+    rulesPriority?: number;    // Priority for .claude/rules/ (0-99)
   };
 
   // Configuration flow (structured)
@@ -241,10 +247,11 @@ interface Plugin {
   // Skills (auto-written to .claude/skills/<name>/SKILL.md)
   skills?: Skill[];
 
-  // Prompt contribution to AGENT.md
-  prompt?: {
-    placeholder: string;
+  // Rules contribution to .claude/rules/ (v2.2+)
+  rules?: {
+    baseName: string;          // e.g., 'git' -> '30-git.md'
     generate(config: PluginConfig): string;
+    paths?: string;            // Optional YAML frontmatter for path-scoped rules
   };
 
   // File outputs to .agent/
@@ -254,7 +261,6 @@ interface Plugin {
 
   // Heavyweight plugin methods
   getHeavyweightConfig?(context: PluginContext): HeavyweightPluginConfig;
-  mergeFile?(filePath: string, ourContent: string | null, theirContent: string): string;
 }
 ```
 
@@ -271,7 +277,7 @@ interface Plugin {
 ### Setup
 
 ```bash
-git clone --recurse-submodules https://github.com/dt-activenetwork/claude-memory-init.git
+git clone https://github.com/dt-activenetwork/claude-memory-init.git
 cd claude-memory-init
 pnpm install
 pnpm build
@@ -313,7 +319,7 @@ pnpm start          # Run built CLI
 | Modify i18n system | docs/I18N_DESIGN.md |
 | Modify interactive flow | docs/INTERACTIVE_CLI_DESIGN.md |
 | Modify CLI commands | docs/CLI_COMMANDS_DESIGN.md |
-| Modify AGENT.md generation | docs/PLUGIN_PROMPT_SPECIFICATION.md |
+| Modify rules generation | `src/core/rules-writer.ts` (code) |
 
 **Skip these** (user docs, not design docs):
 - USER_GUIDE.md, EXAMPLES.md, CLAUDE_FLOW_QUICK_START.md, BDD_SETUP.md
@@ -328,7 +334,6 @@ pnpm start          # Run built CLI
 | I18N_DESIGN.md | Internationalization |
 | INTERACTIVE_CLI_DESIGN.md | Interactive flow design |
 | CLI_COMMANDS_DESIGN.md | Command structure |
-| PLUGIN_PROMPT_SPECIFICATION.md | AGENT.md generation rules |
 
 ### User Docs
 
@@ -372,5 +377,5 @@ pnpm test:coverage
 ## Status
 
 **Version**: 2.2.0-alpha
-**Status**: Heavyweight plugin framework + I18N implemented (399 unit tests + 49 BDD scenarios passed)
-**Last Updated**: 2025-12-10
+**Status**: Rules-based architecture + Plugin system (396 unit tests + 49 BDD scenarios passed)
+**Last Updated**: 2025-12-11
