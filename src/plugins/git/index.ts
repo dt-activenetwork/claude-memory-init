@@ -14,31 +14,7 @@ import type {
 } from '../../plugin/types.js';
 import { formatPluginConfigAsToon } from '../../utils/toon-utils.js';
 import { t } from '../../i18n/index.js';
-
-/**
- * Git plugin configuration options
- */
-export interface GitPluginOptions {
-  /** Enable auto-commit after initialization */
-  auto_commit: boolean;
-
-  /** Commit memory system files separately from other changes */
-  commit_separately: boolean;
-
-  /** Patterns to add to .gitignore */
-  ignore_patterns: string[];
-
-  /** Remote sync configuration */
-  remote_sync: {
-    enabled: boolean;
-    remote_url?: string;
-    auto_pr?: boolean;
-    pr_label?: string;
-  };
-
-  /** Allow AI to perform git operations */
-  ai_git_operations: boolean;
-}
+import type { GitPluginOptions } from './schema.js';
 
 
 /**
@@ -200,19 +176,20 @@ function generateGitRulesMarkdown(options: GitPluginOptions): string {
 /**
  * Git Plugin
  */
-export const gitPlugin: Plugin = {
+export const gitPlugin: Plugin<GitPluginOptions> = {
   meta: {
     name: 'git',
     commandName: 'git',
     version: '1.0.0',
     description: 'Git operations and auto-commit',
     recommended: false,
+    rulesPriority: 30, // 30-39: Version control
   },
 
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<GitPluginOptions>> {
       const { ui } = context;
       const L = t();
 
@@ -233,7 +210,7 @@ export const gitPlugin: Plugin = {
       // Remote sync configuration
       const enableSync = await ui.confirm(L.plugins.git.enableRemoteSync(), false);
 
-      let remoteSyncConfig = {
+      let remoteSyncConfig: GitPluginOptions['remote_sync'] = {
         enabled: false,
       };
 
@@ -250,7 +227,7 @@ export const gitPlugin: Plugin = {
           remote_url: remoteUrl,
           auto_pr: autoPR,
           pr_label: 'system-prompt-update',
-        } as any;
+        };
       }
 
       // AI git operations
@@ -260,18 +237,18 @@ export const gitPlugin: Plugin = {
         auto_commit: autoCommit,
         commit_separately: commitSeparately,
         ignore_patterns: ['.agent/temp/', '.agent/.cache/'],
-        remote_sync: remoteSyncConfig as any,
+        remote_sync: remoteSyncConfig,
         ai_git_operations: aiGitOps,
       };
 
       return {
         enabled: true,
-        options: options as any,
+        options,
       };
     },
 
-    getSummary(config: PluginConfig): string[] {
-      const options = config.options as unknown as GitPluginOptions;
+    getSummary(config: PluginConfig<GitPluginOptions>): string[] {
+      const { options } = config;
       const L = t();
       const lines: string[] = [];
 
@@ -301,15 +278,54 @@ export const gitPlugin: Plugin = {
     },
   },
 
-  prompt: {
-    placeholder: 'GIT_SECTION',
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'git',
 
-    generate: (config: PluginConfig): string => {
+    generate: (config: PluginConfig<GitPluginOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
-      const options = config.options as unknown as GitPluginOptions;
+      const { options } = config;
+      const sections: string[] = ['# Git Operations'];
+      sections.push('');
+
+      if (options.auto_commit) {
+        sections.push('**Auto-commit**: ENABLED');
+        sections.push(
+          `**Strategy**: ${options.commit_separately ? 'Separate commits' : 'Combined commits'}`
+        );
+      } else {
+        sections.push('**Auto-commit**: DISABLED');
+      }
+
+      sections.push('');
+
+      if (options.ai_git_operations) {
+        sections.push('**AI Git Operations**: ALLOWED (with constraints)');
+      } else {
+        sections.push('**AI Git Operations**: FORBIDDEN');
+      }
+
+      sections.push('');
+      sections.push('See `.agent/git/rules.md` for detailed guidelines.');
+      sections.push('See `.agent/git/config.toon` for configuration.');
+
+      return sections.join('\n');
+    },
+  },
+
+  // @deprecated - Use rules instead. Will be removed in v3.0.
+  prompt: {
+    placeholder: 'GIT_SECTION',
+
+    generate: (config: PluginConfig<GitPluginOptions>): string => {
+      if (!config.enabled) {
+        return '';
+      }
+
+      const { options } = config;
       const sections: string[] = ['## Git Operations'];
       sections.push('');
 
@@ -338,12 +354,12 @@ export const gitPlugin: Plugin = {
   },
 
   outputs: {
-    generate: (config: PluginConfig): FileOutput[] => {
+    generate: (config: PluginConfig<GitPluginOptions>): FileOutput[] => {
       if (!config.enabled) {
         return [];
       }
 
-      const options = config.options as unknown as GitPluginOptions;
+      const { options } = config;
 
       return [
         {

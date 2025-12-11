@@ -32,6 +32,13 @@ import {
 } from '../utils/file-ops.js';
 import fse from 'fs-extra';
 import { t } from '../i18n/index.js';
+import { RulesWriter } from './rules-writer.js';
+import { RULES_PRIORITY } from '../constants.js';
+
+/**
+ * CLAUDE.md file names that heavyweight plugins may generate
+ */
+const CLAUDE_MD_FILES = ['CLAUDE.md', 'claude.md'];
 
 /**
  * Default timeout for init commands (2 minutes)
@@ -58,6 +65,23 @@ interface BackupEntry {
 
   /** Original content (if file existed) */
   content?: string;
+}
+
+/**
+ * CLAUDE.md state snapshot
+ */
+interface ClaudeMdState {
+  /** Which file was found (or null if none) */
+  filePath: string | null;
+
+  /** Whether the file existed */
+  existed: boolean;
+
+  /** Content hash (for change detection) */
+  contentHash: string | null;
+
+  /** Original content */
+  content: string | null;
 }
 
 /**
@@ -139,6 +163,14 @@ export class HeavyweightPluginManager {
       };
     }
 
+    // Step 2.5: Capture CLAUDE.md state before init command (for migration)
+    const migrateToRules = config.migrateClaudeMdToRules !== false; // default true
+    let claudeMdStateBefore: ClaudeMdState | null = null;
+
+    if (migrateToRules) {
+      claudeMdStateBefore = await this.captureClaudeMdState();
+    }
+
     // Step 3: Execute init command (if specified)
     let commandOutput: string | undefined;
     let exitCode: number | undefined;
@@ -167,6 +199,16 @@ export class HeavyweightPluginManager {
           error: L.errors.heavyweight.commandFailed({ error: error instanceof Error ? error.message : String(error) }),
         };
       }
+    }
+
+    // Step 3.5: Migrate CLAUDE.md to rules (if changed)
+    if (migrateToRules && claudeMdStateBefore) {
+      await this.migrateClaudeMdToRules(
+        plugin,
+        claudeMdStateBefore,
+        config.rulesFileName,
+        context
+      );
     }
 
     // Step 4: Merge protected files
@@ -494,6 +536,108 @@ export class HeavyweightPluginManager {
       // Ignore cleanup errors
     }
     this.backups.clear();
+  }
+
+  /**
+   * Capture the current state of CLAUDE.md (for migration detection)
+   */
+  private async captureClaudeMdState(): Promise<ClaudeMdState> {
+    for (const filename of CLAUDE_MD_FILES) {
+      const filePath = path.join(this.projectRoot, filename);
+      if (await fileExists(filePath)) {
+        const content = await readFile(filePath);
+        return {
+          filePath,
+          existed: true,
+          contentHash: this.hashContent(content),
+          content,
+        };
+      }
+    }
+
+    return {
+      filePath: null,
+      existed: false,
+      contentHash: null,
+      content: null,
+    };
+  }
+
+  /**
+   * Simple content hash for change detection
+   */
+  private hashContent(content: string | null): string {
+    if (!content) {
+      return 'null';
+    }
+    // Simple hash - just use length and first/last chars
+    // Not cryptographically secure, but sufficient for change detection
+    return `${content.length}-${content.slice(0, 50)}-${content.slice(-50)}`;
+  }
+
+  /**
+   * Migrate CLAUDE.md content to .claude/rules/
+   *
+   * Called after heavyweight plugin init command executes.
+   * Detects if CLAUDE.md was created/modified and moves content to rules.
+   */
+  private async migrateClaudeMdToRules(
+    plugin: Plugin,
+    stateBefore: ClaudeMdState,
+    customFileName: string | undefined,
+    context: PluginContext
+  ): Promise<void> {
+    // Capture current state
+    const stateAfter = await this.captureClaudeMdState();
+
+    // Check if anything changed
+    if (!stateAfter.existed) {
+      // No CLAUDE.md exists after init - nothing to migrate
+      return;
+    }
+
+    const wasCreated = !stateBefore.existed && stateAfter.existed;
+    const wasModified = stateBefore.existed &&
+      stateAfter.existed &&
+      stateBefore.contentHash !== stateAfter.contentHash;
+
+    if (!wasCreated && !wasModified) {
+      // No changes - nothing to migrate
+      return;
+    }
+
+    // Determine content to migrate
+    let contentToMigrate: string;
+
+    if (wasCreated) {
+      // New file created by plugin - migrate entire content
+      contentToMigrate = stateAfter.content!;
+      this.logger.info(`  CLAUDE.md was created by plugin, migrating to rules...`);
+    } else {
+      // File was modified - extract the new content (diff)
+      // For simplicity, we'll migrate the difference or the entire new content
+      // A more sophisticated approach would do a proper diff
+      contentToMigrate = stateAfter.content!;
+      this.logger.info(`  CLAUDE.md was modified by plugin, migrating changes to rules...`);
+    }
+
+    // Write to rules
+    const rulesWriter = new RulesWriter(this.projectRoot, this.logger);
+    const priority = plugin.meta.rulesPriority ?? RULES_PRIORITY.HEAVYWEIGHT_BASE;
+    const fileName = customFileName || plugin.meta.name;
+
+    await rulesWriter.writeMigratedClaudeMd(fileName, contentToMigrate, priority);
+
+    // Restore or remove CLAUDE.md
+    if (stateBefore.existed && stateBefore.content) {
+      // Restore original content
+      await writeFile(stateAfter.filePath!, stateBefore.content);
+      this.logger.info(`  Restored original CLAUDE.md`);
+    } else {
+      // Remove the newly created file
+      await fse.remove(stateAfter.filePath!);
+      this.logger.info(`  Removed generated CLAUDE.md (migrated to rules)`);
+    }
   }
 }
 

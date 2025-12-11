@@ -28,61 +28,17 @@ import {
   PROJECT_MEMORY_FILES,
 } from '../../constants.js';
 import { t } from '../../i18n/index.js';
-
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * User-level preferences (stored in ~/.claude/system/preferences.toon)
- * These are static and persist across all projects.
- */
-export interface UserSystemPreferences {
-  /** OS information (static, detected once per machine) */
-  os: {
-    type: 'linux' | 'darwin' | 'windows';
-    name: string;
-    package_manager: string;
-  };
-
-  /** User's preferred package managers */
-  preferred_managers: {
-    python?: string;  // e.g., 'uv', 'pip', 'poetry'
-    node?: string;    // e.g., 'pnpm', 'npm', 'yarn'
-  };
-
-  /** Locale preferences */
-  locale: {
-    timezone: string;
-    language: string;
-  };
-
-  /** Metadata */
-  created_at: string;
-  updated_at: string;
-}
+import type {
+  SystemDetectorOptions,
+  UserSystemPreferences,
+  ProjectSystemConfig,
+} from './schema.js';
 
 /**
- * Project-level configuration (stored in .agent/system/config.toon)
- * These are specific to each project.
+ * Internal extended options type with runtime state
  */
-export interface ProjectSystemConfig {
-  /** Package managers to use in this project */
-  package_managers: {
-    python?: string;  // Actual manager for this project
-    node?: string;    // Actual manager for this project
-  };
-
-  /** Metadata */
-  configured_at: string;
-}
-
-/**
- * Combined plugin options (for internal use)
- */
-export interface SystemDetectorOptions {
-  userPreferences: UserSystemPreferences | null;
-  projectConfig: ProjectSystemConfig;
+interface SystemDetectorInternalOptions extends SystemDetectorOptions {
+  _isFirstTime?: boolean;
 }
 
 // ============================================================================
@@ -272,19 +228,20 @@ function getNodeManagerDescription(pm: string): string {
 // Plugin Definition
 // ============================================================================
 
-export const systemDetectorPlugin: Plugin = {
+export const systemDetectorPlugin: Plugin<SystemDetectorOptions> = {
   meta: {
     name: 'system-detector',
     commandName: 'system',
     version: '2.1.0',
     description: 'Configure system environment with two-layer memory',
     recommended: true,
+    rulesPriority: 10, // 10-19: System/environment
   },
 
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<SystemDetectorInternalOptions>> {
       const { ui, logger, projectRoot } = context;
       const L = t();
 
@@ -446,22 +403,20 @@ export const systemDetectorPlugin: Plugin = {
       logger.info(L.plugins.systemDetector.nodeConfig({ manager: projectNodeManager || L.plugins.systemDetector.notConfigured() }));
 
       // Build combined options
-      const options: SystemDetectorOptions = {
+      const options: SystemDetectorInternalOptions = {
         userPreferences: userPrefs,
         projectConfig,
+        _isFirstTime: isFirstTime,
       };
 
       return {
         enabled: true,
-        options: {
-          ...options,
-          _isFirstTime: isFirstTime,
-        } as unknown as Record<string, PluginOptionValue>,
+        options,
       };
     },
 
-    getSummary(config: PluginConfig): string[] {
-      const options = config.options as unknown as SystemDetectorOptions & { _isFirstTime?: boolean };
+    getSummary(config: PluginConfig<SystemDetectorInternalOptions>): string[] {
+      const { options } = config;
       const lines: string[] = [];
 
       if (options.userPreferences) {
@@ -500,12 +455,12 @@ export const systemDetectorPlugin: Plugin = {
   prompt: {
     placeholder: 'SYSTEM_INFO_SECTION',
 
-    generate: (config: PluginConfig): string => {
+    generate: (config: PluginConfig<SystemDetectorInternalOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
-      const options = config.options as unknown as SystemDetectorOptions;
+      const { options } = config;
       const lines: string[] = [];
 
       lines.push('## System Environment');
@@ -538,12 +493,12 @@ export const systemDetectorPlugin: Plugin = {
   },
 
   outputs: {
-    generate: async (config: PluginConfig): Promise<FileOutput[]> => {
+    generate: async (config: PluginConfig<SystemDetectorInternalOptions>): Promise<FileOutput[]> => {
       if (!config.enabled) {
         return [];
       }
 
-      const options = config.options as unknown as SystemDetectorOptions & { _isFirstTime?: boolean };
+      const { options } = config;
       const outputs: FileOutput[] = [];
 
       // 1. Save user preferences (only if first time or updated)

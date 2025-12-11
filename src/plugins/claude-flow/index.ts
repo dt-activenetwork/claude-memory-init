@@ -28,36 +28,7 @@ import {
   createGitignoreMerger,
 } from '../../utils/merge-utils.js';
 import { t } from '../../i18n/index.js';
-
-/**
- * Claude Flow initialization modes
- */
-export type ClaudeFlowMode = 'standard' | 'sparc' | 'minimal' | 'skip';
-
-/**
- * MCP Server options
- */
-export type MCPServer = 'claude-flow' | 'ruv-swarm' | 'flow-nexus';
-
-/**
- * Claude Flow Plugin Options
- */
-export interface ClaudeFlowOptions {
-  /** Initialization mode */
-  mode: ClaudeFlowMode;
-
-  /** Enable swarm mode (multi-agent orchestration) */
-  enableSwarm: boolean;
-
-  /** Enable Hive Mind system */
-  enableHiveMind: boolean;
-
-  /** Selected MCP servers */
-  mcpServers: MCPServer[];
-
-  /** Auto-confirm initialization (--yes flag) */
-  autoConfirm: boolean;
-}
+import type { ClaudeFlowOptions, ClaudeFlowMode, MCPServer } from './schema.js';
 
 /**
  * Default options
@@ -105,7 +76,7 @@ const mergeGitignoreWithHeader = createGitignoreMerger('# Claude Flow generated 
 /**
  * Claude Flow Plugin
  */
-export const claudeFlowPlugin: Plugin = {
+export const claudeFlowPlugin: Plugin<ClaudeFlowOptions> = {
   meta: {
     name: 'claude-flow',
     commandName: 'flow',
@@ -114,12 +85,13 @@ export const claudeFlowPlugin: Plugin = {
     recommended: false,
     heavyweight: true,
     conflicts: ['task-system'], // Claude Flow provides its own task management
+    rulesPriority: 80, // 80-89: Heavyweight plugins
   },
 
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<ClaudeFlowOptions>> {
       const { ui, logger } = context;
       const L = t();
 
@@ -155,7 +127,13 @@ export const claudeFlowPlugin: Plugin = {
       if (mode === 'skip') {
         return {
           enabled: false,
-          options: { mode: 'skip' },
+          options: {
+            mode: 'skip',
+            enableSwarm: false,
+            enableHiveMind: false,
+            mcpServers: [],
+            autoConfirm: false,
+          },
         };
       }
 

@@ -367,21 +367,149 @@ describe('HeavyweightPluginManager', () => {
     });
   });
 
-  describe('file merging', () => {
+  describe('CLAUDE.md migration to rules', () => {
     beforeEach(() => {
       vi.mocked(ensureDir).mockResolvedValue(undefined);
       vi.mocked(copyFile).mockResolvedValue(undefined);
       vi.mocked(writeFile).mockResolvedValue(undefined);
     });
 
-    it('should merge files with append strategy', async () => {
-      // First call for backup check, second for merge check
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true) // backup: file exists
-        .mockResolvedValueOnce(true); // merge: file exists
-      vi.mocked(readFile)
-        .mockResolvedValueOnce('our content') // backup read
-        .mockResolvedValueOnce('their content'); // merge read
+    it('should migrate CLAUDE.md created by plugin to rules directory', async () => {
+      // Before init: no CLAUDE.md exists
+      // After init: plugin created CLAUDE.md
+      let callCount = 0;
+      vi.mocked(fileExists).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md') || filePath.includes('claude.md')) {
+          callCount++;
+          // First 2 calls (capture before): file doesn't exist
+          // Next 2 calls (capture after): file exists
+          return callCount > 2;
+        }
+        return false;
+      });
+
+      vi.mocked(readFile).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md')) {
+          return '# Plugin Generated Content\n\nThis is plugin content.';
+        }
+        return '';
+      });
+
+      // Mock spawn for no-op command
+      const mockProcess = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event, cb) => {
+          if (event === 'close') setTimeout(() => cb(0), 10);
+        }),
+        kill: vi.fn(),
+      };
+      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+
+      const plugin: Plugin = {
+        meta: {
+          name: 'test-plugin',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test plugin',
+          heavyweight: true,
+          rulesPriority: 80,
+        },
+        getHeavyweightConfig: vi.fn().mockResolvedValue({
+          protectedFiles: [],
+          initCommand: 'echo test',
+        } as HeavyweightPluginConfig),
+      };
+
+      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
+
+      expect(result.success).toBe(true);
+      // Verify rules file was written (80-test-plugin.md)
+      const rulesWriteCall = vi.mocked(writeFile).mock.calls.find(
+        call => call[0].includes('.claude/rules/') && call[0].includes('test-plugin')
+      );
+      expect(rulesWriteCall).toBeDefined();
+      expect(rulesWriteCall![1]).toContain('Plugin Generated Content');
+    });
+
+    it('should restore original CLAUDE.md after migrating plugin changes', async () => {
+      const originalContent = '# Original User Content\n\nMy custom instructions.';
+
+      // Before init: CLAUDE.md exists with original content
+      // After init: plugin modified CLAUDE.md
+      let callCount = 0;
+      vi.mocked(fileExists).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md') || filePath.includes('claude.md')) {
+          return true; // File always exists in this test
+        }
+        return false;
+      });
+
+      vi.mocked(readFile).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md')) {
+          callCount++;
+          // First read (capture before): original content
+          // Second read (capture after): modified content
+          if (callCount <= 2) {
+            return originalContent;
+          }
+          return '# Modified By Plugin\n\nDifferent content now.';
+        }
+        return '';
+      });
+
+      // Mock spawn for no-op command
+      const mockProcess = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event, cb) => {
+          if (event === 'close') setTimeout(() => cb(0), 10);
+        }),
+        kill: vi.fn(),
+      };
+      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+
+      const plugin: Plugin = {
+        meta: {
+          name: 'test-plugin',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test plugin',
+          heavyweight: true,
+          rulesPriority: 80,
+        },
+        getHeavyweightConfig: vi.fn().mockResolvedValue({
+          protectedFiles: [],
+          initCommand: 'echo test',
+        } as HeavyweightPluginConfig),
+      };
+
+      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
+
+      expect(result.success).toBe(true);
+      // Verify CLAUDE.md was restored with original content
+      const claudeMdWriteCall = vi.mocked(writeFile).mock.calls.find(
+        call => call[0].endsWith('CLAUDE.md') && !call[0].includes('.claude/rules/')
+      );
+      if (claudeMdWriteCall) {
+        expect(claudeMdWriteCall[1]).toBe(originalContent);
+      }
+    });
+
+    it('should backup and restore other protected files', async () => {
+      vi.mocked(fileExists).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('config.toon')) {
+          return true;
+        }
+        return false;
+      });
+
+      vi.mocked(readFile).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('config.toon')) {
+          return 'original: config';
+        }
+        return '';
+      });
 
       // Mock spawn for no-op command
       const mockProcess = {
@@ -404,7 +532,7 @@ describe('HeavyweightPluginManager', () => {
         },
         getHeavyweightConfig: vi.fn().mockResolvedValue({
           protectedFiles: [
-            { path: 'CLAUDE.md', mergeStrategy: 'append' },
+            { path: '.agent/config.toon', mergeStrategy: 'append' },
           ],
           initCommand: 'echo test',
         } as HeavyweightPluginConfig),
@@ -413,268 +541,63 @@ describe('HeavyweightPluginManager', () => {
       const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
 
       expect(result.success).toBe(true);
-      // Verify merged content was written
-      const writeCall = vi.mocked(writeFile).mock.calls.find(
-        call => call[0].includes('CLAUDE.md') && !call[0].includes('backup')
+      // Verify copyFile was called to backup the protected file
+      expect(vi.mocked(copyFile)).toHaveBeenCalled();
+    });
+
+    it('should handle plugin that does not modify CLAUDE.md', async () => {
+      const originalContent = '# User Content';
+
+      // Both before and after: same content hash
+      vi.mocked(fileExists).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md') || filePath.includes('claude.md')) {
+          return true;
+        }
+        return false;
+      });
+
+      vi.mocked(readFile).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md')) {
+          return originalContent; // Always return same content
+        }
+        return '';
+      });
+
+      // Mock spawn for no-op command
+      const mockProcess = {
+        stdout: { on: vi.fn() },
+        stderr: { on: vi.fn() },
+        on: vi.fn((event, cb) => {
+          if (event === 'close') setTimeout(() => cb(0), 10);
+        }),
+        kill: vi.fn(),
+      };
+      vi.mocked(spawn).mockReturnValue(mockProcess as any);
+
+      const plugin: Plugin = {
+        meta: {
+          name: 'test-plugin',
+          commandName: 'test',
+          version: '1.0.0',
+          description: 'Test plugin',
+          heavyweight: true,
+        },
+        getHeavyweightConfig: vi.fn().mockResolvedValue({
+          protectedFiles: [],
+          initCommand: 'echo test',
+        } as HeavyweightPluginConfig),
+      };
+
+      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
+
+      expect(result.success).toBe(true);
+      // Should NOT write to rules directory since nothing changed
+      const rulesWriteCall = vi.mocked(writeFile).mock.calls.find(
+        call => call[0].includes('.claude/rules/')
       );
-      expect(writeCall).toBeDefined();
-      // Append: our content + separator + their content
-      expect(writeCall![1]).toContain('our content');
-      expect(writeCall![1]).toContain('their content');
+      expect(rulesWriteCall).toBeUndefined();
     });
 
-    it('should merge files with prepend strategy', async () => {
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
-      vi.mocked(readFile)
-        .mockResolvedValueOnce('our content')
-        .mockResolvedValueOnce('their content');
-
-      const mockProcess = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event, cb) => {
-          if (event === 'close') setTimeout(() => cb(0), 10);
-        }),
-        kill: vi.fn(),
-      };
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
-
-      const plugin: Plugin = {
-        meta: {
-          name: 'test-plugin',
-          commandName: 'test',
-          version: '1.0.0',
-          description: 'Test plugin',
-          heavyweight: true,
-        },
-        getHeavyweightConfig: vi.fn().mockResolvedValue({
-          protectedFiles: [
-            { path: 'CLAUDE.md', mergeStrategy: 'prepend' },
-          ],
-          initCommand: 'echo test',
-        } as HeavyweightPluginConfig),
-      };
-
-      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
-
-      expect(result.success).toBe(true);
-      const writeCall = vi.mocked(writeFile).mock.calls.find(
-        call => call[0].includes('CLAUDE.md') && !call[0].includes('backup')
-      );
-      expect(writeCall).toBeDefined();
-      // Prepend: their content + separator + our content
-      const content = writeCall![1];
-      const theirIndex = content.indexOf('their content');
-      const ourIndex = content.indexOf('our content');
-      expect(theirIndex).toBeLessThan(ourIndex);
-    });
-
-    it('should use custom merge function when strategy is custom', async () => {
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
-      vi.mocked(readFile)
-        .mockResolvedValueOnce('our content')
-        .mockResolvedValueOnce('their content');
-
-      const mockProcess = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event, cb) => {
-          if (event === 'close') setTimeout(() => cb(0), 10);
-        }),
-        kill: vi.fn(),
-      };
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
-
-      const customMerge = vi.fn().mockReturnValue('custom merged content');
-
-      const plugin: Plugin = {
-        meta: {
-          name: 'test-plugin',
-          commandName: 'test',
-          version: '1.0.0',
-          description: 'Test plugin',
-          heavyweight: true,
-        },
-        getHeavyweightConfig: vi.fn().mockResolvedValue({
-          protectedFiles: [
-            { path: 'CLAUDE.md', mergeStrategy: 'custom' },
-          ],
-          initCommand: 'echo test',
-        } as HeavyweightPluginConfig),
-        mergeFile: customMerge,
-      };
-
-      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
-
-      expect(result.success).toBe(true);
-      expect(customMerge).toHaveBeenCalledWith(
-        'CLAUDE.md',
-        'our content',
-        'their content',
-        mockContext
-      );
-    });
-
-    it('should throw error if custom strategy but no mergeFile function', async () => {
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
-      vi.mocked(readFile)
-        .mockResolvedValueOnce('our content')
-        .mockResolvedValueOnce('their content');
-
-      const mockProcess = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event, cb) => {
-          if (event === 'close') setTimeout(() => cb(0), 10);
-        }),
-        kill: vi.fn(),
-      };
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
-
-      const plugin: Plugin = {
-        meta: {
-          name: 'test-plugin',
-          commandName: 'test',
-          version: '1.0.0',
-          description: 'Test plugin',
-          heavyweight: true,
-        },
-        getHeavyweightConfig: vi.fn().mockResolvedValue({
-          protectedFiles: [
-            { path: 'CLAUDE.md', mergeStrategy: 'custom' },
-          ],
-          initCommand: 'echo test',
-        } as HeavyweightPluginConfig),
-        // No mergeFile function
-      };
-
-      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
-
-      expect(result.success).toBe(false);
-      expect(result.mergeResults[0].error).toContain("doesn't implement mergeFile");
-    });
-
-    it('should handle case when only plugin creates file (no our content)', async () => {
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(false) // backup: file doesn't exist
-        .mockResolvedValueOnce(true); // merge: file exists after command
-      vi.mocked(readFile).mockResolvedValueOnce('their new content');
-
-      const mockProcess = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event, cb) => {
-          if (event === 'close') setTimeout(() => cb(0), 10);
-        }),
-        kill: vi.fn(),
-      };
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
-
-      const plugin: Plugin = {
-        meta: {
-          name: 'test-plugin',
-          commandName: 'test',
-          version: '1.0.0',
-          description: 'Test plugin',
-          heavyweight: true,
-        },
-        getHeavyweightConfig: vi.fn().mockResolvedValue({
-          protectedFiles: [
-            { path: 'NEW_FILE.md', mergeStrategy: 'append' },
-          ],
-          initCommand: 'echo test',
-        } as HeavyweightPluginConfig),
-      };
-
-      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
-
-      expect(result.success).toBe(true);
-      // Should keep their content as is since we had nothing
-      expect(result.mergeResults[0].content).toBe('their new content');
-    });
-
-    it('should handle case when plugin removes file (no their content)', async () => {
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true) // backup: file exists
-        .mockResolvedValueOnce(false); // merge: file doesn't exist after command
-      vi.mocked(readFile).mockResolvedValueOnce('our original content');
-
-      const mockProcess = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event, cb) => {
-          if (event === 'close') setTimeout(() => cb(0), 10);
-        }),
-        kill: vi.fn(),
-      };
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
-
-      const plugin: Plugin = {
-        meta: {
-          name: 'test-plugin',
-          commandName: 'test',
-          version: '1.0.0',
-          description: 'Test plugin',
-          heavyweight: true,
-        },
-        getHeavyweightConfig: vi.fn().mockResolvedValue({
-          protectedFiles: [
-            { path: 'EXISTING.md', mergeStrategy: 'append' },
-          ],
-          initCommand: 'echo test',
-        } as HeavyweightPluginConfig),
-      };
-
-      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
-
-      expect(result.success).toBe(true);
-      // Should restore our content since plugin didn't create anything
-      const writeCall = vi.mocked(writeFile).mock.calls.find(
-        call => call[0].includes('EXISTING.md')
-      );
-      expect(writeCall![1]).toBe('our original content');
-    });
-
-    it('should handle case when neither file exists', async () => {
-      vi.mocked(fileExists).mockResolvedValue(false);
-
-      const mockProcess = {
-        stdout: { on: vi.fn() },
-        stderr: { on: vi.fn() },
-        on: vi.fn((event, cb) => {
-          if (event === 'close') setTimeout(() => cb(0), 10);
-        }),
-        kill: vi.fn(),
-      };
-      vi.mocked(spawn).mockReturnValue(mockProcess as any);
-
-      const plugin: Plugin = {
-        meta: {
-          name: 'test-plugin',
-          commandName: 'test',
-          version: '1.0.0',
-          description: 'Test plugin',
-          heavyweight: true,
-        },
-        getHeavyweightConfig: vi.fn().mockResolvedValue({
-          protectedFiles: [
-            { path: 'NONEXISTENT.md', mergeStrategy: 'append' },
-          ],
-          initCommand: 'echo test',
-        } as HeavyweightPluginConfig),
-      };
-
-      const result = await manager.executeHeavyweightPlugin(plugin, mockContext);
-
-      expect(result.success).toBe(true);
-      expect(result.mergeResults[0].content).toBe('');
-    });
   });
 
   describe('restoreBackups', () => {

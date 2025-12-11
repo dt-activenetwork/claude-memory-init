@@ -14,28 +14,19 @@ import type {
   SlashCommand,
 } from '../../plugin/types.js';
 import { t } from '../../i18n/index.js';
-
-/**
- * Task System Plugin Options
- */
-export interface TaskSystemOptions {
-  /** Enable task tracking */
-  enable_tracking: boolean;
-
-  /** Enable task output directory */
-  enable_output: boolean;
-}
+import type { TaskSystemOptions } from './schema.js';
 
 /**
  * Task System Plugin
  */
-export const taskSystemPlugin: Plugin = {
+export const taskSystemPlugin: Plugin<TaskSystemOptions> = {
   meta: {
     name: 'task-system',
     commandName: 'task',
     version: '1.0.0',
     description: 'Task workflows, state tracking, and outputs',
     recommended: true,
+    rulesPriority: 50, // 50-59: Task management
   },
 
   slashCommands: [
@@ -88,7 +79,7 @@ export const taskSystemPlugin: Plugin = {
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<TaskSystemOptions>> {
       const { ui } = context;
       const L = t();
 
@@ -109,12 +100,12 @@ export const taskSystemPlugin: Plugin = {
 
       return {
         enabled: true,
-        options: options as any,
+        options,
       };
     },
 
-    getSummary(config: PluginConfig): string[] {
-      const options = config.options as unknown as TaskSystemOptions;
+    getSummary(config: PluginConfig<TaskSystemOptions>): string[] {
+      const { options } = config;
       const L = t();
       const lines: string[] = [];
 
@@ -140,12 +131,12 @@ export const taskSystemPlugin: Plugin = {
   prompt: {
     placeholder: 'TASK_SECTION',
 
-    generate: (config: PluginConfig): string => {
+    generate: (config: PluginConfig<TaskSystemOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
-      const options = config.options as unknown as TaskSystemOptions;
+      const { options } = config;
 
       const lines = ['## Task System'];
       lines.push('');
@@ -204,12 +195,12 @@ export const taskSystemPlugin: Plugin = {
   },
 
   outputs: {
-    generate: async (config: PluginConfig): Promise<FileOutput[]> => {
+    generate: async (config: PluginConfig<TaskSystemOptions>): Promise<FileOutput[]> => {
       if (!config.enabled) {
         return [];
       }
 
-      const options = config.options as unknown as TaskSystemOptions;
+      const { options } = config;
       const outputs: FileOutput[] = [];
 
       // 1. workflows/ README
@@ -319,8 +310,7 @@ Updated by: /task-start, /task-pause, /task-resume, /task-complete
   },
 
   gitignore: {
-    getPatterns: (config: PluginConfig): string[] => {
-      const options = config.options as unknown as TaskSystemOptions;
+    getPatterns: (config: PluginConfig<TaskSystemOptions>): string[] => {
       return [
         '.agent/tasks/tmp/',
         '.agent/tasks/output/*.tmp',

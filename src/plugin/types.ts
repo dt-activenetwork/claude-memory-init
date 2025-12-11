@@ -137,9 +137,9 @@ export type PluginOptionValue = string | number | boolean | string[] | Record<st
 /**
  * Plugin configuration
  */
-export interface PluginConfig {
+export interface PluginConfig<TOptions = Record<string, PluginOptionValue>> {
   enabled: boolean;
-  options: Record<string, PluginOptionValue>;
+  options: TOptions;
 
   /**
    * Selected memory scope for this plugin instance
@@ -247,7 +247,7 @@ export interface ConfigurationContext {
  *
  * Defines how a plugin collects configuration from the user
  */
-export interface PluginConfigurationFlow {
+export interface PluginConfigurationFlow<TOptions = Record<string, PluginOptionValue>> {
   /**
    * Whether the plugin needs interactive configuration
    * If false, the plugin will be configured silently
@@ -261,7 +261,7 @@ export interface PluginConfigurationFlow {
    * @param context Configuration context with UI and logger
    * @returns Plugin configuration
    */
-  configure: (context: ConfigurationContext) => Promise<PluginConfig> | PluginConfig;
+  configure: (context: ConfigurationContext) => Promise<PluginConfig<TOptions>> | PluginConfig<TOptions>;
 
   /**
    * Generate a summary of the plugin's configuration
@@ -270,7 +270,7 @@ export interface PluginConfigurationFlow {
    * @param config Plugin configuration
    * @returns Array of summary lines to display
    */
-  getSummary: (config: PluginConfig) => string[];
+  getSummary: (config: PluginConfig<TOptions>) => string[];
 }
 
 /**
@@ -386,6 +386,28 @@ export interface PluginMeta {
    * @example ['task-system'] - conflicts with task-system
    */
   conflicts?: string[];
+
+  /**
+   * Rules priority (init.d style, 0-99)
+   *
+   * Determines the numeric prefix for files in .claude/rules/
+   * Lower numbers load first.
+   *
+   * Ranges:
+   * - 00-09: Project basics
+   * - 10-19: System/environment
+   * - 20-29: Global settings
+   * - 30-39: Version control
+   * - 40-49: Core systems
+   * - 50-59: Task management
+   * - 60-69: Extensions
+   * - 70-79: Workflows
+   * - 80-89: Heavyweight plugins
+   * - 90-99: User custom
+   *
+   * @see RULES_PRIORITY constants
+   */
+  rulesPriority?: number;
 }
 
 /**
@@ -415,8 +437,11 @@ export interface FileOutput {
 
 /**
  * Plugin prompt contribution to AGENT.md
+ *
+ * @deprecated Use PluginRulesContribution instead. This interface will be removed in v3.0.
+ * The new rules-based architecture writes to .claude/rules/*.md instead of a single AGENT.md.
  */
-export interface PluginPromptContribution {
+export interface PluginPromptContribution<TOptions = Record<string, PluginOptionValue>> {
   /**
    * Placeholder name in AGENT.md.template
    *
@@ -424,6 +449,7 @@ export interface PluginPromptContribution {
    * If plugin is disabled or returns empty string, placeholder is replaced with empty string.
    *
    * @example "GIT_SECTION", "MEMORY_SECTION", "SYSTEM_INFO_SECTION"
+   * @deprecated Use PluginRulesContribution.baseName instead
    */
   placeholder: string;
 
@@ -436,14 +462,54 @@ export interface PluginPromptContribution {
    * @param config Plugin configuration
    * @param context Plugin context
    * @returns Markdown content including section title, or empty string
+   * @deprecated Use PluginRulesContribution.generate instead
    */
-  generate: (config: PluginConfig, context: PluginContext) => Promise<string> | string;
+  generate: (config: PluginConfig<TOptions>, context: PluginContext) => Promise<string> | string;
+}
+
+/**
+ * Plugin rules contribution to .claude/rules/
+ *
+ * Generates rules files that are natively supported by Claude Code.
+ * Each plugin generates its own {priority}-{baseName}.md file.
+ */
+export interface PluginRulesContribution<TOptions = Record<string, PluginOptionValue>> {
+  /**
+   * Base name for the rules file (without priority prefix and .md extension)
+   *
+   * Final filename: {priority}-{baseName}.md
+   * Priority is taken from meta.rulesPriority.
+   *
+   * @example 'git' results in '30-git.md' (if priority is 30)
+   * @example 'memory' results in '40-memory.md' (if priority is 40)
+   */
+  baseName: string;
+
+  /**
+   * Generate rules content
+   *
+   * The generated content is written directly to .claude/rules/{priority}-{baseName}.md
+   * If plugin is disabled or returns empty string, no file is created.
+   *
+   * @param config Plugin configuration
+   * @param context Plugin context
+   * @returns Markdown content for the rules file, or empty string to skip
+   */
+  generate: (config: PluginConfig<TOptions>, context: PluginContext) => Promise<string> | string;
+
+  /**
+   * Optional path filter (glob pattern)
+   *
+   * If specified, a YAML frontmatter with paths will be automatically prepended.
+   * This makes the rules apply only to files matching the pattern.
+   */
+  paths?: string;
 }
 
 /**
  * Plugin file outputs
  */
-export interface PluginOutputs {
+export interface PluginOutputs<TOptions = Record<string, PluginOptionValue>> {
   /**
    * Generate files to be written to .agent/ directory
    *
@@ -451,25 +517,26 @@ export interface PluginOutputs {
    * @param context Plugin context
    * @returns Array of file outputs
    */
-  generate: (config: PluginConfig, context: PluginContext) => Promise<FileOutput[]> | FileOutput[];
+  generate: (config: PluginConfig<TOptions>, context: PluginContext) => Promise<FileOutput[]> | FileOutput[];
 }
 
 /**
  * Plugin gitignore contribution
  */
-export interface PluginGitignoreContribution {
+export interface PluginGitignoreContribution<TOptions = Record<string, PluginOptionValue>> {
   /**
-   * Get gitignore patterns for this plugin
-   *
-   * @param config Plugin configuration
-   * @returns Array of patterns to ignore
-   */
-  getPatterns: (config: PluginConfig) => string[];
-
-  /**
-   * Optional comment to add above patterns
+   * Comment to add above the patterns (optional)
+   * Will be formatted as: # {comment}
    */
   comment?: string;
+
+  /**
+   * Get patterns to add to .gitignore
+   *
+   * @param config Plugin configuration
+   * @returns Array of gitignore patterns
+   */
+  getPatterns: (config: PluginConfig<TOptions>) => string[];
 }
 
 /**
@@ -566,6 +633,9 @@ export interface HeavyweightPluginConfig {
    *
    * These files will be backed up before the init command runs,
    * and merged according to their merge strategy afterward.
+   *
+   * Note: CLAUDE.md should NOT be included here anymore.
+   * Use migrateClaudeMdToRules instead for automatic migration.
    */
   protectedFiles: ProtectedFile[];
 
@@ -595,6 +665,31 @@ export interface HeavyweightPluginConfig {
    * Environment variables to pass to the init command (optional)
    */
   env?: Record<string, string>;
+
+  /**
+   * Whether to automatically migrate generated CLAUDE.md to .claude/rules/
+   *
+   * When true (default), if the init command creates or modifies CLAUDE.md:
+   * 1. The content is extracted
+   * 2. Written to .claude/rules/{priority}-{plugin}.md
+   * 3. The generated CLAUDE.md is removed (or restored to original state)
+   *
+   * This allows multiple heavyweight plugins to coexist without overwriting
+   * each other's CLAUDE.md content.
+   *
+   * @default true
+   */
+  migrateClaudeMdToRules?: boolean;
+
+  /**
+   * Custom rules file name for migrated CLAUDE.md content
+   *
+   * If not specified, uses the plugin name from meta.name.
+   * The priority prefix comes from meta.rulesPriority.
+   *
+   * @example 'claude-flow' results in '80-claude-flow.md'
+   */
+  rulesFileName?: string;
 }
 
 /**
@@ -639,12 +734,12 @@ export interface HeavyweightExecutionResult {
  *
  * Complete interface for defining a plugin
  */
-export interface Plugin {
+export interface Plugin<TOptions = Record<string, PluginOptionValue>> {
   /** Plugin metadata */
   meta: PluginMeta;
 
   /** Configuration flow (optional - plugins without config don't need this) */
-  configuration?: PluginConfigurationFlow;
+  configuration?: PluginConfigurationFlow<TOptions>;
 
   /** Lifecycle hooks (optional - plugins can implement any subset) */
   hooks?: PluginHooks;
@@ -667,8 +762,22 @@ export interface Plugin {
    */
   skills?: Skill[];
 
-  /** Prompt contribution to AGENT.md (optional) */
-  prompt?: PluginPromptContribution;
+  /**
+   * Prompt contribution to AGENT.md (optional)
+   *
+   * @deprecated Use `rules` instead. This will be removed in v3.0.
+   */
+  prompt?: PluginPromptContribution<TOptions>;
+
+  /**
+   * Rules contribution to .claude/rules/ (optional)
+   *
+   * Generates a rules file that is natively supported by Claude Code.
+   * The file is named {priority}-{baseName}.md where priority comes from meta.rulesPriority.
+   *
+   * This replaces the deprecated `prompt` property.
+   */
+  rules?: PluginRulesContribution<TOptions>;
 
   /**
    * File outputs to .agent/ directory (optional)
@@ -676,10 +785,10 @@ export interface Plugin {
    * Note: Do NOT include slash commands or skills here.
    * Use slashCommands and skills properties instead.
    */
-  outputs?: PluginOutputs;
+  outputs?: PluginOutputs<TOptions>;
 
   /** Gitignore patterns contribution (optional) */
-  gitignore?: PluginGitignoreContribution;
+  gitignore?: PluginGitignoreContribution<TOptions>;
 
   // ============================================================================
   // Heavyweight Plugin Methods

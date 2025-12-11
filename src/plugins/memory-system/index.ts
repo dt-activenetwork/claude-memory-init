@@ -16,28 +16,19 @@ import type {
 import { readFile, writeFile, ensureDir, copyFile } from '../../utils/file-ops.js';
 import { getCurrentDate } from '../../utils/date-utils.js';
 import { t } from '../../i18n/index.js';
-
-/**
- * Memory System Plugin Options
- */
-export interface MemorySystemOptions {
-  /** Enabled memory types */
-  memory_types: string[]; // ['knowledge', 'history']
-
-  /** Include system knowledge layer */
-  include_system: boolean;
-}
+import type { MemorySystemOptions } from './schema.js';
 
 /**
  * Memory System Plugin
  */
-export const memorySystemPlugin: Plugin = {
+export const memorySystemPlugin: Plugin<MemorySystemOptions> = {
   meta: {
     name: 'memory-system',
     commandName: 'memory',
     version: '1.0.0',
     description: 'Memory system for knowledge persistence',
     recommended: true,
+    rulesPriority: 40, // 40-49: Core systems
   },
 
   slashCommands: [
@@ -69,7 +60,7 @@ export const memorySystemPlugin: Plugin = {
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<MemorySystemOptions>> {
       const { ui } = context;
       const L = t();
 
@@ -105,12 +96,12 @@ export const memorySystemPlugin: Plugin = {
 
       return {
         enabled: memoryTypes.length > 0,
-        options: options as any,
+        options,
       };
     },
 
-    getSummary(config: PluginConfig): string[] {
-      const options = config.options as unknown as MemorySystemOptions;
+    getSummary(config: PluginConfig<MemorySystemOptions>): string[] {
+      const { options } = config;
       const L = t();
       const lines: string[] = [];
 
@@ -136,6 +127,51 @@ export const memorySystemPlugin: Plugin = {
     },
   },
 
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'memory',
+
+    generate: (config: PluginConfig): string => {
+      if (!config.enabled) {
+        return '';
+      }
+
+      return `# Memory System
+
+Memory-driven workflow for efficient knowledge reuse.
+
+## Workflow
+
+**Before work**:
+1. Use \`/memory-search <tag>\` or \`/memory-query <topic>\` to find relevant knowledge
+2. Read identified notes completely
+
+**During work**:
+- Apply existing knowledge
+- Don't re-analyze what's documented
+
+**After work**:
+1. Create/update memory notes in \`.agent/memory/knowledge/\` or \`.agent/memory/history/\`
+2. Update indexes in \`.agent/memory/index/tags.toon\` and \`topics.toon\`
+
+## Available Commands
+
+- \`/memory-search <tag>\` - Find notes by tag
+- \`/memory-query <topic>\` - Query notes by topic
+- \`/memory-index\` - Show all tags and topics
+- \`/memory-recent [N]\` - Show N most recent notes
+
+## Key Principles
+
+- Use commands to query (efficient, structured)
+- Read complete note files (don't skip)
+- Never use find/grep on memory (use indexes via commands)
+
+Commands contain detailed steps. Just call them when needed.`;
+    },
+  },
+
+  // @deprecated - Use rules instead. Will be removed in v3.0.
   prompt: {
     placeholder: 'MEMORY_SECTION',
 
@@ -180,12 +216,12 @@ Commands contain detailed steps. Just call them when needed.`;
   },
 
   outputs: {
-    generate: async (config: PluginConfig, context: PluginContext): Promise<FileOutput[]> => {
+    generate: async (config: PluginConfig<MemorySystemOptions>, context: PluginContext): Promise<FileOutput[]> => {
       if (!config.enabled) {
         return [];
       }
 
-      const options = config.options as unknown as MemorySystemOptions;
+      const { options } = config;
       const outputs: FileOutput[] = [];
 
       // 1. workflow.md

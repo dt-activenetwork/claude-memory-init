@@ -13,8 +13,8 @@
     并且 用户选择所有推荐的功能
     并且 用户确认初始化
     那么 目录 ".agent" 应该存在
-    并且 文件 "AGENT.md" 应该存在
-    并且 文件 "AGENT.md" 应该包含 "my-project"
+    并且 目录 ".claude/rules" 应该存在
+    并且 文件 ".claude/rules/00-project.md" 应该包含 "my-project"
     并且 文件 ".agent/.claude-memory-init" 应该存在
 
   场景: 最小化初始化（仅系统检测器）
@@ -23,7 +23,7 @@
     并且 用户确认初始化
     那么 目录 ".agent" 应该存在
     并且 目录 ".agent/system" 应该存在
-    并且 文件 "AGENT.md" 应该包含 "System Environment"
+    并且 目录 ".claude/rules" 应该存在
 
   场景: 检测到已初始化的项目
     假如 项目已经初始化过
@@ -48,14 +48,15 @@
       | .agent/memory/history       |
       | .agent/memory/index         |
       | .agent/git                  |
+      | .claude/rules               |
 
-  场景: AGENT.md 不应包含未替换的占位符
+  场景: 规则文件不应包含未替换的占位符
     当 用户完成初始化
-    那么 文件 "AGENT.md" 不应该包含 "{{"
-    并且 文件 "AGENT.md" 不应该包含 "}}"
+    那么 文件 ".claude/rules/00-project.md" 不应该包含 "{{"
+    并且 文件 ".claude/rules/00-project.md" 不应该包含 "}}"
 
-  场景: 追加到现有 AGENT.md 文件
+  场景: 保留现有的 AGENT.md 文件
     假如 项目中存在 "AGENT.md" 文件包含 "# Existing Content"
     当 用户完成初始化
     那么 文件 "AGENT.md" 应该包含 "# Existing Content"
-    并且 文件 "AGENT.md" 应该包含 "# AI Agent Instructions"
+    并且 目录 ".claude/rules" 应该存在

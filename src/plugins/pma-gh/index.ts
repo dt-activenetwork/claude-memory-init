@@ -16,20 +16,7 @@ import type {
   PluginContext,
 } from '../../plugin/types.js';
 import { t } from '../../i18n/index.js';
-
-/**
- * PMA-GH Plugin Options
- */
-export interface PmaGhOptions {
-  /** Enable issue validation (check assignee and project linkage) */
-  enable_validation: boolean;
-
-  /** Auto-create feature branch when starting issue */
-  auto_create_branch: boolean;
-
-  /** Branch naming pattern */
-  branch_pattern: string;
-}
+import type { PmaGhOptions } from './schema.js';
 
 /**
  * Default options
@@ -43,13 +30,14 @@ const DEFAULT_OPTIONS: PmaGhOptions = {
 /**
  * PMA-GH Plugin
  */
-export const pmaGhPlugin: Plugin = {
+export const pmaGhPlugin: Plugin<PmaGhOptions> = {
   meta: {
     name: 'pma-gh',
     commandName: 'pma',
     version: '1.0.0',
     description: 'GitHub project management assistant with issue tracking and PR workflow',
     recommended: false,
+    rulesPriority: 70, // 70-79: Workflows
   },
 
   // Slash commands - CLI automatically writes to .claude/commands/
@@ -85,7 +73,7 @@ export const pmaGhPlugin: Plugin = {
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<PmaGhOptions>> {
       const { ui, logger } = context;
       const L = t();
 
@@ -120,12 +108,12 @@ export const pmaGhPlugin: Plugin = {
 
       return {
         enabled: true,
-        options: options as any,
+        options,
       };
     },
 
-    getSummary(config: PluginConfig): string[] {
-      const options = config.options as unknown as PmaGhOptions;
+    getSummary(config: PluginConfig<PmaGhOptions>): string[] {
+      const { options } = config;
       const L = t();
       const lines: string[] = [];
 
@@ -151,12 +139,12 @@ export const pmaGhPlugin: Plugin = {
   prompt: {
     placeholder: 'PMA_GH_SECTION',
 
-    generate: (config: PluginConfig): string => {
+    generate: (config: PluginConfig<PmaGhOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
-      const options = config.options as unknown as PmaGhOptions;
+      const { options } = config;
 
       const lines = ['## GitHub Workflow (PMA)'];
       lines.push('');

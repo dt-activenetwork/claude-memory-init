@@ -93,9 +93,16 @@ describe('Full Initialization Flow (E2E)', () => {
       // Verify directory structure
       await expectDirectoryExists(tmpDir, '.agent');
       await expectDirectoryExists(tmpDir, '.agent/system');
+      await expectDirectoryExists(tmpDir, '.claude/rules');
 
-      // Verify AGENT.md exists
-      await expectFileExists(tmpDir, 'AGENT.md');
+      // Verify rules files exist (new architecture - no AGENT.md)
+      const rulesDir = path.join(tmpDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md'));
+      expect(mdFiles.length).toBeGreaterThan(0);
+
+      // Verify project rules file (00-project.md)
+      await expectFileExists(tmpDir, '.claude/rules/00-project.md');
 
       // Verify system config file (new v2.1 two-layer architecture)
       await expectFileExists(tmpDir, '.agent/system/config.toon');
@@ -111,11 +118,9 @@ describe('Full Initialization Flow (E2E)', () => {
       expect(configContent).toContain('configured_at:');
       expect(configContent).toContain('package_managers:');
 
-      // Verify AGENT.md content
-      const agentMd = await fs.readFile(path.join(tmpDir, 'AGENT.md'), 'utf-8');
-      expect(agentMd).toContain('# AI Agent Instructions');
-      expect(agentMd).toContain('test-project');
-      expect(agentMd).toContain('System Environment');
+      // Verify project rules content
+      const projectRules = await fs.readFile(path.join(tmpDir, '.claude/rules/00-project.md'), 'utf-8');
+      expect(projectRules).toContain('test-project');
     });
   });
 
@@ -154,18 +159,23 @@ describe('Full Initialization Flow (E2E)', () => {
       await expectDirectoryExists(tmpDir, '.agent/system');
       await expectDirectoryExists(tmpDir, '.agent/memory');
       await expectDirectoryExists(tmpDir, '.agent/git');
+      await expectDirectoryExists(tmpDir, '.claude/rules');
 
       // Verify files
-      await expectFileExists(tmpDir, 'AGENT.md');
+      await expectFileExists(tmpDir, '.claude/rules/00-project.md');
       await expectFileExists(tmpDir, '.agent/system/config.toon');
 
-      // Note: git/config.toon might be generated differently
-      // Skip for now until we verify the actual output structure
+      // Verify rules files for enabled plugins
+      const rulesDir = path.join(tmpDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md'));
 
-      // Verify AGENT.md exists and has basic content
-      const agentMd = await fs.readFile(path.join(tmpDir, 'AGENT.md'), 'utf-8');
-      expect(agentMd).toContain('# AI Agent Instructions');
-      expect(agentMd).toContain('full-test-project');
+      // Should have multiple rules files for all enabled plugins
+      expect(mdFiles.length).toBeGreaterThanOrEqual(2);
+
+      // Verify project rules content
+      const projectRules = await fs.readFile(path.join(tmpDir, '.claude/rules/00-project.md'), 'utf-8');
+      expect(projectRules).toContain('full-test-project');
 
       // Verify system/config.toon exists and has package managers
       const systemConfig = await fs.readFile(
@@ -247,12 +257,12 @@ describe('Full Initialization Flow (E2E)', () => {
     });
   });
 
-  describe('Scenario 5: Append to Existing CLAUDE.md', () => {
-    it('should append to existing CLAUDE.md instead of overwriting', async () => {
+  describe('Scenario 5: Preserve Existing CLAUDE.md', () => {
+    it('should not modify existing CLAUDE.md - rules go to .claude/rules/', async () => {
       // Create existing CLAUDE.md with custom content
       const existingContent = `# My Project Instructions
 
-This is my custom project instructions that should NOT be overwritten.
+This is my custom project instructions that should NOT be modified.
 
 ## Custom Section
 
@@ -262,8 +272,8 @@ Some important notes here.
 
       // Mock user inputs
       await mockUserInputs({
-        projectName: 'append-test',
-        projectDescription: 'Test appending to existing file',
+        projectName: 'preserve-test',
+        projectDescription: 'Test preserving existing file',
         selectedPlugins: ['system-detector'],
         systemDetector: {
           useExistingConfig: false,
@@ -275,25 +285,23 @@ Some important notes here.
       // Run initialization
       await initializer.run(tmpDir, { force: false });
 
-      // Verify CLAUDE.md was preserved and appended to
+      // Verify CLAUDE.md was NOT modified
       const finalContent = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(finalContent).toBe(existingContent);
 
-      // Original content should be preserved
-      expect(finalContent).toContain('# My Project Instructions');
-      expect(finalContent).toContain('This is my custom project instructions that should NOT be overwritten');
-      expect(finalContent).toContain('## Custom Section');
-      expect(finalContent).toContain('Some important notes here');
+      // Verify rules were written to .claude/rules/
+      await expectDirectoryExists(tmpDir, '.claude/rules');
+      const rulesDir = path.join(tmpDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md'));
+      expect(mdFiles.length).toBeGreaterThan(0);
 
-      // New content should be appended
-      expect(finalContent).toContain('# AI Agent Instructions');
-      expect(finalContent).toContain('append-test');
-
-      // AGENT.md should NOT be created (CLAUDE.md was used)
-      const agentMdExists = await fileExists(path.join(tmpDir, 'AGENT.md'));
-      expect(agentMdExists).toBe(false);
+      // Verify project rules contain the project name
+      const projectRules = await fs.readFile(path.join(rulesDir, '00-project.md'), 'utf-8');
+      expect(projectRules).toContain('preserve-test');
     });
 
-    it('should append to existing AGENT.md if it exists', async () => {
+    it('should not modify existing AGENT.md - rules go to .claude/rules/', async () => {
       // Create existing AGENT.md with custom content
       const existingContent = `# Existing Agent Instructions
 
@@ -303,8 +311,8 @@ Custom content here.
 
       // Mock user inputs
       await mockUserInputs({
-        projectName: 'agent-append-test',
-        projectDescription: 'Test appending to AGENT.md',
+        projectName: 'agent-preserve-test',
+        projectDescription: 'Test preserving AGENT.md',
         selectedPlugins: ['system-detector'],
         systemDetector: {
           useExistingConfig: false,
@@ -316,27 +324,27 @@ Custom content here.
       // Run initialization
       await initializer.run(tmpDir, { force: false });
 
-      // Verify AGENT.md was preserved and appended to
+      // Verify AGENT.md was NOT modified
       const finalContent = await fs.readFile(path.join(tmpDir, 'AGENT.md'), 'utf-8');
+      expect(finalContent).toBe(existingContent);
 
-      // Original content should be preserved
-      expect(finalContent).toContain('# Existing Agent Instructions');
-      expect(finalContent).toContain('Custom content here');
-
-      // New content should be appended
-      expect(finalContent).toContain('# AI Agent Instructions');
-      expect(finalContent).toContain('agent-append-test');
+      // Verify rules were written to .claude/rules/
+      const rulesDir = path.join(tmpDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      expect(files.some(f => f.endsWith('.md'))).toBe(true);
     });
 
-    it('should prefer AGENT.md over CLAUDE.md when both exist', async () => {
+    it('should not touch CLAUDE.md or AGENT.md when both exist', async () => {
       // Create both files
-      await fs.writeFile(path.join(tmpDir, 'AGENT.md'), '# AGENT file content\n');
-      await fs.writeFile(path.join(tmpDir, 'CLAUDE.md'), '# CLAUDE file content\n');
+      const agentContent = '# AGENT file content\n';
+      const claudeContent = '# CLAUDE file content\n';
+      await fs.writeFile(path.join(tmpDir, 'AGENT.md'), agentContent);
+      await fs.writeFile(path.join(tmpDir, 'CLAUDE.md'), claudeContent);
 
       // Mock user inputs
       await mockUserInputs({
-        projectName: 'prefer-test',
-        projectDescription: 'Test AGENT.md preference',
+        projectName: 'both-files-test',
+        projectDescription: 'Test with both files existing',
         selectedPlugins: ['system-detector'],
         systemDetector: {
           useExistingConfig: false,
@@ -348,14 +356,16 @@ Custom content here.
       // Run initialization
       await initializer.run(tmpDir, { force: false });
 
-      // Verify AGENT.md was updated
-      const agentContent = await fs.readFile(path.join(tmpDir, 'AGENT.md'), 'utf-8');
-      expect(agentContent).toContain('# AGENT file content');
-      expect(agentContent).toContain('prefer-test');
+      // Verify both files remain unchanged
+      const finalAgentContent = await fs.readFile(path.join(tmpDir, 'AGENT.md'), 'utf-8');
+      const finalClaudeContent = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
+      expect(finalAgentContent).toBe(agentContent);
+      expect(finalClaudeContent).toBe(claudeContent);
 
-      // CLAUDE.md should remain unchanged
-      const claudeContent = await fs.readFile(path.join(tmpDir, 'CLAUDE.md'), 'utf-8');
-      expect(claudeContent).toBe('# CLAUDE file content\n');
+      // Verify rules were written to .claude/rules/
+      const rulesDir = path.join(tmpDir, '.claude', 'rules');
+      const projectRules = await fs.readFile(path.join(rulesDir, '00-project.md'), 'utf-8');
+      expect(projectRules).toContain('both-files-test');
     });
   });
 });

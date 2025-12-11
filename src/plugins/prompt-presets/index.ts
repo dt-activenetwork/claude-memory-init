@@ -18,17 +18,7 @@ import type {
 } from '../../plugin/types.js';
 import { readFile } from '../../utils/file-ops.js';
 import { t } from '../../i18n/index.js';
-
-/**
- * Prompt Presets Plugin Options
- */
-export interface PromptPresetsOptions {
-  /** Selected base template (single choice) */
-  base_template: string;
-
-  /** Selected enhancements (multi-select, 0 to N) */
-  enhancements: string[];
-}
+import type { PromptPresetsOptions } from './schema.js';
 
 /**
  * Available base templates
@@ -57,19 +47,20 @@ const ENHANCEMENTS = [
 /**
  * Prompt Presets Plugin
  */
-export const promptPresetsPlugin: Plugin = {
+export const promptPresetsPlugin: Plugin<PromptPresetsOptions> = {
   meta: {
     name: 'prompt-presets',
     commandName: 'presets',
     version: '2.0.0',
     description: 'Base prompt templates with optional enhancements',
     recommended: true,
+    rulesPriority: 60, // 60-69: Extensions
   },
 
   configuration: {
     needsConfiguration: true,
 
-    async configure(context: ConfigurationContext): Promise<PluginConfig> {
+    async configure(context: ConfigurationContext): Promise<PluginConfig<PromptPresetsOptions>> {
       const { ui, logger } = context;
       const L = t();
 
@@ -114,12 +105,12 @@ export const promptPresetsPlugin: Plugin = {
 
       return {
         enabled: true,
-        options: options as any,
+        options,
       };
     },
 
-    getSummary(config: PluginConfig): string[] {
-      const options = config.options as unknown as PromptPresetsOptions;
+    getSummary(config: PluginConfig<PromptPresetsOptions>): string[] {
+      const { options } = config;
       const L = t();
       const lines: string[] = [];
 
@@ -147,12 +138,12 @@ export const promptPresetsPlugin: Plugin = {
   prompt: {
     placeholder: 'PRESETS_SECTION',
 
-    generate: (config: PluginConfig): string => {
+    generate: (config: PluginConfig<PromptPresetsOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
-      const options = config.options as unknown as PromptPresetsOptions;
+      const { options } = config;
       const baseName = BASE_TEMPLATES.find(t => t.value === options.base_template)?.name;
 
       const lines: string[] = [];
@@ -178,12 +169,12 @@ export const promptPresetsPlugin: Plugin = {
   },
 
   outputs: {
-    generate: async (config: PluginConfig, context: PluginContext): Promise<FileOutput[]> => {
+    generate: async (config: PluginConfig<PromptPresetsOptions>, context: PluginContext): Promise<FileOutput[]> => {
       if (!config.enabled) {
         return [];
       }
 
-      const options = config.options as unknown as PromptPresetsOptions;
+      const { options } = config;
       const outputs: FileOutput[] = [];
 
       try {

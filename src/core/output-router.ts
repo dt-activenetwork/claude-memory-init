@@ -13,6 +13,9 @@ export interface OutputRoutes {
   /** Skills output directory, relative to project root */
   skills: string;
 
+  /** Rules output directory, relative to project root (Claude Code native) */
+  rules: string;
+
   /** Project data directory, relative to project root */
   projectData: string;
 
@@ -26,6 +29,7 @@ export interface OutputRoutes {
 export const DEFAULT_OUTPUT_ROUTES: OutputRoutes = {
   slashCommands: '.claude/commands',
   skills: '.claude/skills',
+  rules: '.claude/rules',
   projectData: '.agent',
   userData: '~/.claude',
 };
@@ -111,6 +115,31 @@ export class OutputRouter {
    */
   getSkillsDir(): string {
     return path.join(this.projectRoot, this.routes.skills);
+  }
+
+  /**
+   * Get rules file path
+   *
+   * @param filename - Rules filename (e.g., '30-git.md')
+   * @returns Absolute path to the rules file
+   * @example
+   * getRulesPath('30-git.md')
+   * // => '/path/to/project/.claude/rules/30-git.md'
+   */
+  getRulesPath(filename: string): string {
+    return path.join(this.projectRoot, this.routes.rules, filename);
+  }
+
+  /**
+   * Get rules directory
+   *
+   * @returns Absolute path to the rules directory
+   * @example
+   * getRulesDir()
+   * // => '/path/to/project/.claude/rules'
+   */
+  getRulesDir(): string {
+    return path.join(this.projectRoot, this.routes.rules);
   }
 
   /**

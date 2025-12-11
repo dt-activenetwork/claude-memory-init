@@ -445,8 +445,8 @@ describe('Claude Flow Integration Tests', () => {
     });
   });
 
-  describe('CLAUDE.md Merge Verification', () => {
-    it('should merge CLAUDE.md with append strategy', async () => {
+  describe('CLAUDE.md Migration to Rules', () => {
+    it('should migrate CLAUDE.md created by plugin to rules directory', async () => {
       const plugin = createMockClaudeFlowPlugin({ mode: 'standard' });
 
       const configs = new Map<string, PluginConfig>([
@@ -463,18 +463,32 @@ describe('Claude Flow Integration Tests', () => {
       const context = createMockContext(tempDir, configs);
       const manager = new HeavyweightPluginManager(tempDir, context.logger);
 
-      // Our content exists, then their content after command
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true)  // CLAUDE.md backup check
-        .mockResolvedValueOnce(true)  // config.toon backup check
-        .mockResolvedValueOnce(true)  // CLAUDE.md merge check
-        .mockResolvedValueOnce(true); // config.toon merge check
+      // Before init: no CLAUDE.md exists
+      // After init: plugin created CLAUDE.md
+      let claudeMdCallCount = 0;
+      vi.mocked(fileExists).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md') || filePath.includes('claude.md')) {
+          claudeMdCallCount++;
+          // First 2 calls (capture before): no CLAUDE.md
+          // Next 2 calls (capture after): CLAUDE.md exists
+          return claudeMdCallCount > 2;
+        }
+        // config.toon exists for backup
+        if (filePath.includes('config.toon')) {
+          return true;
+        }
+        return false;
+      });
 
-      vi.mocked(readFile)
-        .mockResolvedValueOnce('# Our CLAUDE.md')  // backup
-        .mockResolvedValueOnce('# Our config')     // backup
-        .mockResolvedValueOnce('# Claude Flow CLAUDE.md')  // merge
-        .mockResolvedValueOnce('# Claude Flow config');    // merge
+      vi.mocked(readFile).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('CLAUDE.md')) {
+          return '# Claude Flow Generated\n\nThis is from claude-flow init.';
+        }
+        if (filePath.includes('config.toon')) {
+          return 'project: test';
+        }
+        return '';
+      });
 
       vi.mocked(ensureDir).mockResolvedValue(undefined);
       vi.mocked(copyFile).mockResolvedValue(undefined);
@@ -494,19 +508,17 @@ describe('Claude Flow Integration Tests', () => {
 
       expect(result.success).toBe(true);
 
-      // Verify merge was performed
+      // Verify rules file was written to .claude/rules/
       const writeCalls = vi.mocked(writeFile).mock.calls;
-      const claudeMdWrite = writeCalls.find(call =>
-        call[0].includes('CLAUDE.md') && !call[0].includes('backup')
+      const rulesWrite = writeCalls.find(call =>
+        call[0].includes('.claude/rules/') && call[0].includes('claude-flow')
       );
 
-      expect(claudeMdWrite).toBeDefined();
-      // Should contain both our content and their content with separator
-      expect(claudeMdWrite![1]).toContain('Our CLAUDE.md');
-      expect(claudeMdWrite![1]).toContain('Claude Flow CLAUDE.md');
+      expect(rulesWrite).toBeDefined();
+      expect(rulesWrite![1]).toContain('Claude Flow Generated');
     });
 
-    it('should use custom merge for config.toon', async () => {
+    it('should backup and restore protected files', async () => {
       const plugin = createMockClaudeFlowPlugin({ mode: 'standard' });
 
       const configs = new Map<string, PluginConfig>([
@@ -523,17 +535,20 @@ describe('Claude Flow Integration Tests', () => {
       const context = createMockContext(tempDir, configs);
       const manager = new HeavyweightPluginManager(tempDir, context.logger);
 
-      vi.mocked(fileExists)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
+      // config.toon exists and will be protected
+      vi.mocked(fileExists).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('config.toon')) {
+          return true;
+        }
+        return false;
+      });
 
-      vi.mocked(readFile)
-        .mockResolvedValueOnce('# Our CLAUDE.md')
-        .mockResolvedValueOnce('project: test')  // Our config.toon
-        .mockResolvedValueOnce('# Claude Flow CLAUDE.md')
-        .mockResolvedValueOnce('flow: enabled');  // Their config.toon
+      vi.mocked(readFile).mockImplementation(async (filePath: string) => {
+        if (filePath.includes('config.toon')) {
+          return 'project: test\noriginal: content';
+        }
+        return '';
+      });
 
       vi.mocked(ensureDir).mockResolvedValue(undefined);
       vi.mocked(copyFile).mockResolvedValue(undefined);
@@ -553,16 +568,12 @@ describe('Claude Flow Integration Tests', () => {
 
       expect(result.success).toBe(true);
 
-      // Verify custom merge was used for config.toon
-      const writeCalls = vi.mocked(writeFile).mock.calls;
-      const configWrite = writeCalls.find(call =>
-        call[0].includes('config.toon') && !call[0].includes('backup')
+      // Verify backup was created for config.toon
+      expect(vi.mocked(copyFile)).toHaveBeenCalled();
+      const backupCall = vi.mocked(copyFile).mock.calls.find(call =>
+        call[0].includes('config.toon')
       );
-
-      expect(configWrite).toBeDefined();
-      // Should use custom merge format
-      expect(configWrite![1]).toContain('Our Configuration');
-      expect(configWrite![1]).toContain('Claude Flow Configuration');
+      expect(backupCall).toBeDefined();
     });
   });
 

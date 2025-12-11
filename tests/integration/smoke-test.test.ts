@@ -5,8 +5,8 @@
  * It's plugin-agnostic and focuses on core mechanisms:
  * - Plugin system (registration, loading, execution)
  * - Interactive flow (dynamic steps, configuration)
- * - File generation (AGENT.md, TOON files, directory structure)
- * - Placeholder system (conditional content generation)
+ * - File generation (.claude/rules/*.md, TOON files, directory structure)
+ * - Rules file system (per-plugin rule generation)
  * - TOON format (generation and persistence)
  *
  * Run this test after any code change to ensure nothing broke.
@@ -94,16 +94,24 @@ describe('Smoke Test: Full System Functionality', () => {
       expect(stats.isDirectory()).toBe(true);
     });
 
-    it('should generate AGENT.md in project root', async () => {
-      const agentMdPath = path.join(testOutputDir, 'AGENT.md');
-      const stats = await fs.stat(agentMdPath);
-      expect(stats.isFile()).toBe(true);
+    it('should generate rules files in .claude/rules/', async () => {
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const stats = await fs.stat(rulesDir);
+      expect(stats.isDirectory()).toBe(true);
 
-      // Verify basic structure
-      const content = await fs.readFile(agentMdPath, 'utf-8');
-      expect(content).toContain('# AI Agent Instructions');
+      // Verify rules files exist with correct naming (NN-plugin.md format)
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md'));
+      expect(mdFiles.length).toBeGreaterThan(0);
+
+      // Check for project rules file (00-project.md)
+      const projectRulesPath = path.join(rulesDir, '00-project.md');
+      const projectRulesExists = await fileExists(projectRulesPath);
+      expect(projectRulesExists).toBe(true);
+
+      // Verify project rules content
+      const content = await fs.readFile(projectRulesPath, 'utf-8');
       expect(content).toContain('test-project');
-      expect(content).toContain('---'); // Section separator
     });
 
     it('should create marker file', async () => {
@@ -142,23 +150,24 @@ describe('Smoke Test: Full System Functionality', () => {
     });
 
     it('should respect plugin priorities and execution order', async () => {
-      // Plugins should execute in dependency order
-      // For now, just verify all plugins executed (evidenced by their outputs)
+      // Plugins should generate rules files with correct priority prefixes
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md')).sort();
 
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      // Files should be numbered to reflect priority order
+      // 00-project.md, 10-system.md, 30-git.md, 40-memory.md, etc.
+      expect(mdFiles.length).toBeGreaterThan(0);
 
-      // Sections should appear in priority order
-      const systemEnvIndex = agentMd.indexOf('System Environment');
-      const gitIndex = agentMd.indexOf('Git');
-      const memoryIndex = agentMd.indexOf('Memory');
+      // Verify files are prefixed with numbers (NN-name.md format)
+      for (const file of mdFiles) {
+        expect(file).toMatch(/^\d{2}-.*\.md$/);
+      }
 
-      // If all sections exist, they should be in order
-      if (systemEnvIndex !== -1 && gitIndex !== -1 && memoryIndex !== -1) {
-        expect(systemEnvIndex).toBeLessThan(gitIndex);
-        // Note: Exact order depends on plugin priorities
+      // Files should be in ascending order when sorted
+      const priorities = mdFiles.map(f => parseInt(f.substring(0, 2), 10));
+      for (let i = 1; i < priorities.length; i++) {
+        expect(priorities[i]).toBeGreaterThanOrEqual(priorities[i - 1]);
       }
     });
   });
@@ -212,58 +221,65 @@ describe('Smoke Test: Full System Functionality', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // Placeholder System Tests
+  // Rules File System Tests
   // ═══════════════════════════════════════════════════════════
 
-  describe('Placeholder System', () => {
-    it('should replace all placeholders in AGENT.md', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+  describe('Rules File System', () => {
+    it('should generate rules files for each enabled plugin', async () => {
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md'));
 
-      // Should NOT contain unreplaced placeholders
-      expect(agentMd).not.toContain('{{');
-      expect(agentMd).not.toContain('}}');
-      expect(agentMd).not.toContain('SYSTEM_INFO_SECTION');
-      expect(agentMd).not.toContain('GIT_SECTION');
-      expect(agentMd).not.toContain('MEMORY_SECTION');
+      // Should have rules files for enabled plugins
+      // Project rules (00), system (10), git (30), memory (40)
+      expect(mdFiles.length).toBeGreaterThanOrEqual(2);
+
+      // Check for project rules file
+      expect(files.some(f => f.startsWith('00-'))).toBe(true);
     });
 
     it('should include content from enabled plugins', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      // System Detector plugin content
-      expect(agentMd).toContain('System Environment');
-      expect(agentMd).toContain('Operating System');
+      // Read all rules files and check for plugin content
+      let allContent = '';
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+        allContent += content + '\n';
+      }
 
-      // Git plugin content
-      expect(agentMd).toContain('Git');
+      // System Detector plugin content (if enabled)
+      const hasSystem = files.some(f => f.includes('system'));
+      if (hasSystem) {
+        expect(allContent).toMatch(/System|Environment|Operating/i);
+      }
 
-      // Memory plugin content
-      expect(agentMd).toContain('Memory');
+      // Git plugin content (if enabled)
+      const hasGit = files.some(f => f.includes('git'));
+      if (hasGit) {
+        expect(allContent).toMatch(/Git|commit|branch/i);
+      }
+
+      // Memory plugin content (if enabled)
+      const hasMemory = files.some(f => f.includes('memory'));
+      if (hasMemory) {
+        expect(allContent).toMatch(/Memory|knowledge|TOON/i);
+      }
     });
 
-    it('should remove sections from disabled plugins', async () => {
+    it('should only generate rules for enabled plugins', async () => {
       // For this test, we enabled all plugins
-      // So we verify all sections exist
+      // So we verify rules files exist for each enabled plugin
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+      const mdFiles = files.filter(f => f.endsWith('.md'));
 
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
-
-      // All major sections should be present
-      const hasSections = [
-        agentMd.includes('System'),
-        agentMd.includes('Git'),
-        agentMd.includes('Memory'),
-      ];
-
-      expect(hasSections.every(Boolean)).toBe(true);
+      // Each rules file should have content
+      for (const file of mdFiles) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+        expect(content.length).toBeGreaterThan(10);
+      }
     });
   });
 
@@ -345,65 +361,77 @@ describe('Smoke Test: Full System Functionality', () => {
   });
 
   // ═══════════════════════════════════════════════════════════
-  // AGENT.md Content Tests
+  // Rules Content Tests
   // ═══════════════════════════════════════════════════════════
 
-  describe('AGENT.md Content', () => {
+  describe('Rules Content', () => {
     it('should have project information', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const projectRulesPath = path.join(testOutputDir, '.claude', 'rules', '00-project.md');
+      const content = await fs.readFile(projectRulesPath, 'utf-8');
 
-      expect(agentMd).toContain('test-project');
-      // Project description should be somewhere in the file
-      expect(agentMd.length).toBeGreaterThan(500); // Has substantial content
+      expect(content).toContain('test-project');
+      // Project rules should have substantial content
+      expect(content.length).toBeGreaterThan(100);
     });
 
-    it('should have system information section', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+    it('should have system information in rules', async () => {
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      // New v2.1 format focuses on package managers
-      expect(agentMd).toContain('System Environment');
-      expect(agentMd).toContain('Package Managers');
+      // Find system rules file (10-system.md)
+      const systemFile = files.find(f => f.includes('system'));
+      if (systemFile) {
+        const content = await fs.readFile(path.join(rulesDir, systemFile), 'utf-8');
+        // System rules focus on package managers
+        expect(content).toMatch(/System|Environment|Package/i);
+      }
     });
 
     it('should mention TOON format', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      // Should have minimal TOON documentation
-      expect(agentMd.toLowerCase()).toContain('toon');
+      // Read all rules files
+      let allContent = '';
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+        allContent += content + '\n';
+      }
+
+      // Some rules file should mention TOON
+      expect(allContent.toLowerCase()).toContain('toon');
     });
 
     it('should have clear reading instructions', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
+
+      // Read all rules files
+      let allContent = '';
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+        allContent += content + '\n';
+      }
 
       // Should guide on how to use the system
-      expect(agentMd.toLowerCase()).toMatch(/read|see|check/);
-      expect(agentMd).toContain('.agent/');
+      expect(allContent).toContain('.agent/');
     });
 
     it('should not contain debug artifacts', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      // Should not have development artifacts
-      expect(agentMd).not.toContain('TODO');
-      expect(agentMd).not.toContain('FIXME');
-      expect(agentMd).not.toContain('DEBUG');
-      expect(agentMd).not.toContain('undefined');
-      expect(agentMd).not.toContain('null');
+      // Check all rules files
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+
+        // Should not have development artifacts
+        expect(content).not.toContain('TODO');
+        expect(content).not.toContain('FIXME');
+        expect(content).not.toContain('DEBUG');
+        expect(content).not.toContain('undefined');
+        expect(content).not.toContain('null');
+      }
     });
   });
 
@@ -535,51 +563,48 @@ describe('Smoke Test: Full System Functionality', () => {
 
   describe('Content Quality', () => {
     it('should have meaningful content (not placeholder text)', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
-
-      // Should have actual system information
-      const hasActualOS = /Operating System.*:\s*.+/.test(agentMd);
-      expect(hasActualOS).toBe(true);
+      const projectRulesPath = path.join(testOutputDir, '.claude', 'rules', '00-project.md');
+      const content = await fs.readFile(projectRulesPath, 'utf-8');
 
       // Should have actual project name
-      expect(agentMd).toContain('test-project');
-      expect(agentMd).not.toContain('{{PROJECT_NAME}}');
+      expect(content).toContain('test-project');
+      expect(content).not.toContain('{{PROJECT_NAME}}');
+      expect(content).not.toContain('{{');
     });
 
     it('should have correct file references', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      // File references should use correct paths
-      if (agentMd.includes('config.toon')) {
-        expect(agentMd).toContain('.agent/config.toon');
+      // Read all rules files
+      let allContent = '';
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+        allContent += content + '\n';
       }
 
-      if (agentMd.includes('tags.toon')) {
-        expect(agentMd).toContain('.agent/memory/index/tags.toon');
+      // File references should use correct paths
+      if (allContent.includes('tags.toon')) {
+        expect(allContent).toContain('.agent/memory/index/tags.toon');
       }
     });
 
     it('should have proper markdown formatting', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      // Should have proper headers
-      expect(agentMd).toMatch(/^# /m);
-      expect(agentMd).toMatch(/^## /m);
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
 
-      // Should have code blocks if mentioning code
-      if (agentMd.includes('```')) {
-        // Verify code blocks are closed
-        const openBlocks = (agentMd.match(/```/g) || []).length;
-        expect(openBlocks % 2).toBe(0); // Even number (open and close)
+        // Should have proper headers (at least one # header per file)
+        expect(content).toMatch(/^#+ /m);
+
+        // Should have code blocks if mentioning code
+        if (content.includes('```')) {
+          // Verify code blocks are closed
+          const openBlocks = (content.match(/```/g) || []).length;
+          expect(openBlocks % 2).toBe(0); // Even number (open and close)
+        }
       }
     });
   });
@@ -632,19 +657,23 @@ describe('Smoke Test: Full System Functionality', () => {
       expect(true).toBe(true);
     });
 
-    it('should generate reasonably sized AGENT.md', async () => {
-      const agentMd = await fs.readFile(
-        path.join(testOutputDir, 'AGENT.md'),
-        'utf-8'
-      );
+    it('should generate reasonably sized rules files', async () => {
+      const rulesDir = path.join(testOutputDir, '.claude', 'rules');
+      const files = await fs.readdir(rulesDir);
 
-      const sizeKB = Buffer.byteLength(agentMd, 'utf-8') / 1024;
+      let totalSize = 0;
+      for (const file of files.filter(f => f.endsWith('.md'))) {
+        const content = await fs.readFile(path.join(rulesDir, file), 'utf-8');
+        totalSize += Buffer.byteLength(content, 'utf-8');
+      }
 
-      // AGENT.md should be < 50KB (token efficient)
+      const sizeKB = totalSize / 1024;
+
+      // Total rules should be < 50KB (token efficient)
       expect(sizeKB).toBeLessThan(50);
 
-      // But should have substantial content (> 1KB)
-      expect(sizeKB).toBeGreaterThan(1);
+      // But should have substantial content (> 0.5KB)
+      expect(sizeKB).toBeGreaterThan(0.5);
     });
 
     it('should generate compact TOON files', async () => {

@@ -30,26 +30,18 @@ import {
   removeMarker,
   type MarkerInfo,
 } from './marker.js';
-import { ensureDir, writeFile, fileExists, readFile } from '../utils/file-ops.js';
-import { assembleAgentMd, type AgentTemplateVariables } from './agent-assembler.js';
-import { getCurrentDate } from '../utils/date-utils.js';
+import { ensureDir } from '../utils/file-ops.js';
 import {
   DEFAULT_AGENT_DIR,
-  AGENT_MD_FILENAME,
-  LEGACY_AGENT_MD_FILENAME,
-  AGENT_MD_TEMPLATE,
   AGENT_SUBDIRS,
   MEMORY_SUBDIRS,
   TASK_SUBDIRS,
-  USER_MEMORY_DIR,
+  CLAUDE_DIR,
+  CLAUDE_SUBDIRS,
+  APP_VERSION,
 } from '../constants.js';
-import {
-  ensureUserMemoryStructure,
-  writeScopedFile,
-  getScopeBaseDir,
-  appendOrCreateFile,
-  findFirstExistingFile,
-} from '../utils/file-ops.js';
+import { RulesWriter } from './rules-writer.js';
+import { ensureUserMemoryStructure } from '../utils/file-ops.js';
 import {
   HeavyweightPluginManager,
   separatePluginsByWeight,
@@ -588,7 +580,7 @@ export class InteractiveInitializer {
       'Creating directory structure',
       'Initializing lightweight plugins',
       'Writing plugin outputs',
-      'Generating AGENT.md',
+      'Writing rules files',
     ];
 
     if (heavyweight.length > 0) {
@@ -625,10 +617,11 @@ export class InteractiveInitializer {
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.OUTPUT));
       await ensureDir(path.join(agentDir, AGENT_SUBDIRS.TASKS, TASK_SUBDIRS.TMP));
 
-      // Create .claude directories for commands and skills
-      await ensureDir(path.join(targetDir, '.claude'));
-      await ensureDir(path.join(targetDir, '.claude', 'commands'));
-      await ensureDir(path.join(targetDir, '.claude', 'skills'));
+      // Create .claude directories for commands, skills, and rules
+      await ensureDir(path.join(targetDir, CLAUDE_DIR));
+      await ensureDir(path.join(targetDir, CLAUDE_DIR, CLAUDE_SUBDIRS.COMMANDS));
+      await ensureDir(path.join(targetDir, CLAUDE_DIR, CLAUDE_SUBDIRS.SKILLS));
+      await ensureDir(path.join(targetDir, CLAUDE_DIR, CLAUDE_SUBDIRS.RULES));
 
       progress.nextStep();
 
@@ -678,16 +671,15 @@ export class InteractiveInitializer {
       await resourceWriter.writeAllResources(lightweight, pluginConfigs, context);
       progress.nextStep();
 
-      // Step 4: Generate and write AGENT.md
-      // Note: We use all plugins here so heavyweight plugins can contribute prompts
-      await this.generateAgentMd(
-        targetDir,
-        baseDir,
-        projectInfo,
-        allPlugins,
-        pluginConfigs,
-        context
-      );
+      // Step 4: Write rules files to .claude/rules/
+      // All plugins can contribute rules (lightweight now, heavyweight after their init)
+      const rulesWriter = new RulesWriter(targetDir, context.logger);
+
+      // Write project info rules file first
+      await rulesWriter.writeProjectRules(projectInfo.name, APP_VERSION);
+
+      // Write lightweight plugin rules (heavyweight plugins will write rules after their init)
+      await rulesWriter.writeAllPluginRules(lightweight, pluginConfigs, context);
       progress.nextStep();
 
       // Step 5: Initialize heavyweight plugins (if any)
@@ -745,54 +737,6 @@ export class InteractiveInitializer {
 
 
   /**
-   * Generate and write AGENT.md (or CLAUDE.md)
-   *
-   * If an existing AGENT.md or CLAUDE.md file exists, appends new content
-   * after a blank line instead of overwriting.
-   */
-  private async generateAgentMd(
-    targetDir: string,
-    baseDir: string,
-    projectInfo: ProjectInfo,
-    plugins: Plugin[],
-    configs: Map<string, PluginConfig>,
-    context: PluginContext
-  ): Promise<void> {
-    // Template variables
-    const variables: AgentTemplateVariables = {
-      PROJECT_NAME: projectInfo.name,
-      VERSION: '2.0.0',
-      LAST_UPDATED: getCurrentDate(),
-      THINK_LANGUAGE: 'English', // TODO: Get from config
-      USER_LANGUAGE: 'English', // TODO: Get from config
-    };
-
-    // Template path
-    const templatePath = path.join(process.cwd(), 'templates/agent', AGENT_MD_TEMPLATE);
-
-    // Assemble new AGENT.md content
-    const newContent = await assembleAgentMd(templatePath, variables, plugins, configs, context);
-
-    // Check for existing files (prefer AGENT.md over CLAUDE.md)
-    const agentMdPath = path.join(targetDir, AGENT_MD_FILENAME);
-    const claudeMdPath = path.join(targetDir, LEGACY_AGENT_MD_FILENAME);
-
-    // Find existing file or use default path
-    const existingFilePath = await findFirstExistingFile([agentMdPath, claudeMdPath]);
-    const targetFilePath = existingFilePath || agentMdPath;
-
-    // Append to existing or create new
-    const wasAppended = await appendOrCreateFile(targetFilePath, newContent);
-
-    const fileName = path.basename(targetFilePath);
-    if (wasAppended) {
-      context.logger.success(`Updated: ${fileName} (appended new content)`);
-    } else {
-      context.logger.success(`Generated: ${fileName}`);
-    }
-  }
-
-  /**
    * Show completion message with next steps
    */
   private showCompletionMessage(targetDir: string, baseDir: string): void {
@@ -803,8 +747,9 @@ export class InteractiveInitializer {
     console.log();
 
     console.log(chalk.bold(L.prompts.complete.filesCreated()));
-    console.log(chalk.gray(L.prompts.complete.agentMd({ filename: AGENT_MD_FILENAME })));
-    console.log(chalk.gray(L.prompts.complete.agentDir({ dirname: baseDir })));
+    console.log(chalk.gray(`  ${CLAUDE_DIR}/${CLAUDE_SUBDIRS.RULES}/  - Rules for Claude behavior`));
+    console.log(chalk.gray(`  ${CLAUDE_DIR}/${CLAUDE_SUBDIRS.COMMANDS}/  - Slash commands`));
+    console.log(chalk.gray(`  ${baseDir}/  - Project data and configuration`));
     console.log();
 
     // Show available slash commands
@@ -820,7 +765,7 @@ export class InteractiveInitializer {
     }
 
     console.log(chalk.bold(L.prompts.complete.nextSteps()));
-    console.log(chalk.gray(L.prompts.complete.step1({ filename: AGENT_MD_FILENAME })));
+    console.log(chalk.gray(`  1. Review rules in ${CLAUDE_DIR}/${CLAUDE_SUBDIRS.RULES}/`));
     console.log(chalk.gray(L.prompts.complete.step2()));
     if (allSlashCommands.length > 0) {
       console.log(chalk.gray(L.prompts.complete.step3()));
