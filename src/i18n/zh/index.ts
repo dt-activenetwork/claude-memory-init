@@ -280,6 +280,20 @@ const zh: Translation = {
         closeDesc: '将当前 issue 标记为不计划处理并关闭',
       },
     },
+    languageSettings: {
+      name: 'language-settings',
+      description: '配置 LLM Agent 语言偏好',
+      configTitle: '[语言设置]',
+      detected: '✓ 检测到语言：{language}',
+      selectUserLanguage: 'AI 输出内容（文档、报告）使用什么语言？',
+      selectThinkLanguage: 'AI 内部思考使用什么语言？',
+      detectedHint: '（从系统检测）',
+      thinkEnglishDesc: '推荐用于技术工作（代码、文档通常是英文）',
+      sameAsUser: '与输出语言相同',
+      sameAsUserDesc: '思考和输出使用相同的语言',
+      thinkLabel: '思考语言：{language}',
+      userLabel: '输出语言：{language}',
+    },
   },
 
   errors: {

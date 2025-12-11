@@ -1102,6 +1102,59 @@ type RootTranslation = {
 				closeDesc: string
 			}
 		}
+		languageSettings: {
+			/**
+			 * l​a​n​g​u​a​g​e​-​s​e​t​t​i​n​g​s
+			 */
+			name: string
+			/**
+			 * C​o​n​f​i​g​u​r​e​ ​L​L​M​ ​A​g​e​n​t​ ​l​a​n​g​u​a​g​e​ ​p​r​e​f​e​r​e​n​c​e​s
+			 */
+			description: string
+			/**
+			 * [​L​a​n​g​u​a​g​e​ ​S​e​t​t​i​n​g​s​]
+			 */
+			configTitle: string
+			/**
+			 * ✓​ ​D​e​t​e​c​t​e​d​ ​l​a​n​g​u​a​g​e​:​ ​{​l​a​n​g​u​a​g​e​}
+			 * @param {string} language
+			 */
+			detected: RequiredParams<'language'>
+			/**
+			 * W​h​a​t​ ​l​a​n​g​u​a​g​e​ ​s​h​o​u​l​d​ ​t​h​e​ ​A​I​ ​u​s​e​ ​f​o​r​ ​o​u​t​p​u​t​s​ ​(​d​o​c​u​m​e​n​t​a​t​i​o​n​,​ ​r​e​p​o​r​t​s​)​?
+			 */
+			selectUserLanguage: string
+			/**
+			 * W​h​a​t​ ​l​a​n​g​u​a​g​e​ ​s​h​o​u​l​d​ ​t​h​e​ ​A​I​ ​u​s​e​ ​f​o​r​ ​i​n​t​e​r​n​a​l​ ​t​h​i​n​k​i​n​g​?
+			 */
+			selectThinkLanguage: string
+			/**
+			 * (​d​e​t​e​c​t​e​d​ ​f​r​o​m​ ​s​y​s​t​e​m​)
+			 */
+			detectedHint: string
+			/**
+			 * R​e​c​o​m​m​e​n​d​e​d​ ​f​o​r​ ​t​e​c​h​n​i​c​a​l​ ​w​o​r​k​ ​(​c​o​d​e​,​ ​d​o​c​s​ ​a​r​e​ ​u​s​u​a​l​l​y​ ​i​n​ ​E​n​g​l​i​s​h​)
+			 */
+			thinkEnglishDesc: string
+			/**
+			 * S​a​m​e​ ​a​s​ ​o​u​t​p​u​t​ ​l​a​n​g​u​a​g​e
+			 */
+			sameAsUser: string
+			/**
+			 * U​s​e​ ​t​h​e​ ​s​a​m​e​ ​l​a​n​g​u​a​g​e​ ​f​o​r​ ​t​h​i​n​k​i​n​g​ ​a​n​d​ ​o​u​t​p​u​t​s
+			 */
+			sameAsUserDesc: string
+			/**
+			 * T​h​i​n​k​ ​l​a​n​g​u​a​g​e​:​ ​{​l​a​n​g​u​a​g​e​}
+			 * @param {string} language
+			 */
+			thinkLabel: RequiredParams<'language'>
+			/**
+			 * O​u​t​p​u​t​ ​l​a​n​g​u​a​g​e​:​ ​{​l​a​n​g​u​a​g​e​}
+			 * @param {string} language
+			 */
+			userLabel: RequiredParams<'language'>
+		}
 	}
 	errors: {
 		validation: {
@@ -2556,6 +2609,56 @@ export type TranslationFunctions = {
 				 */
 				closeDesc: () => LocalizedString
 			}
+		}
+		languageSettings: {
+			/**
+			 * language-settings
+			 */
+			name: () => LocalizedString
+			/**
+			 * Configure LLM Agent language preferences
+			 */
+			description: () => LocalizedString
+			/**
+			 * [Language Settings]
+			 */
+			configTitle: () => LocalizedString
+			/**
+			 * ✓ Detected language: {language}
+			 */
+			detected: (arg: { language: string }) => LocalizedString
+			/**
+			 * What language should the AI use for outputs (documentation, reports)?
+			 */
+			selectUserLanguage: () => LocalizedString
+			/**
+			 * What language should the AI use for internal thinking?
+			 */
+			selectThinkLanguage: () => LocalizedString
+			/**
+			 * (detected from system)
+			 */
+			detectedHint: () => LocalizedString
+			/**
+			 * Recommended for technical work (code, docs are usually in English)
+			 */
+			thinkEnglishDesc: () => LocalizedString
+			/**
+			 * Same as output language
+			 */
+			sameAsUser: () => LocalizedString
+			/**
+			 * Use the same language for thinking and outputs
+			 */
+			sameAsUserDesc: () => LocalizedString
+			/**
+			 * Think language: {language}
+			 */
+			thinkLabel: (arg: { language: string }) => LocalizedString
+			/**
+			 * Output language: {language}
+			 */
+			userLabel: (arg: { language: string }) => LocalizedString
 		}
 	}
 	errors: {

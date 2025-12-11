@@ -6,6 +6,7 @@
 
 import { corePlugin } from './core/index.js';
 import { systemDetectorPlugin } from './system-detector/index.js';
+import { languageSettingsPlugin } from './language-settings/index.js';
 import { gitPlugin } from './git/index.js';
 import { promptPresetsPlugin } from './prompt-presets/index.js';
 import { memorySystemPlugin } from './memory-system/index.js';
@@ -21,13 +22,19 @@ import type { Plugin } from '../plugin/types.js';
  *
  * Note: Heavyweight plugins (like claude-flow) are executed after all
  * lightweight plugins, with file protection and merging.
+ *
+ * The `unknown` generic allows plugins with different option types
+ * to be stored in the same array. Type safety is maintained within
+ * each plugin's implementation.
  */
-export const builtinPlugins: Plugin[] = [
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const builtinPlugins: Plugin<any>[] = [
   // Core plugin (always enabled, essential commands)
   corePlugin,
 
   // Lightweight plugins (executed first)
   systemDetectorPlugin,
+  languageSettingsPlugin,
   gitPlugin,
   memorySystemPlugin,
   taskSystemPlugin,
@@ -41,7 +48,8 @@ export const builtinPlugins: Plugin[] = [
 /**
  * Get plugin by name
  */
-export function getPluginByName(name: string): Plugin | undefined {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getPluginByName(name: string): Plugin<any> | undefined {
   return builtinPlugins.find((p) => p.meta.name === name);
 }
 

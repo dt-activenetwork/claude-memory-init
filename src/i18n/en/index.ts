@@ -280,6 +280,20 @@ const en = {
         closeDesc: 'Close the current issue as not planned',
       },
     },
+    languageSettings: {
+      name: 'language-settings',
+      description: 'Configure LLM Agent language preferences',
+      configTitle: '[Language Settings]',
+      detected: '✓ Detected language: {language:string}',
+      selectUserLanguage: 'What language should the AI use for outputs (documentation, reports)?',
+      selectThinkLanguage: 'What language should the AI use for internal thinking?',
+      detectedHint: '(detected from system)',
+      thinkEnglishDesc: 'Recommended for technical work (code, docs are usually in English)',
+      sameAsUser: 'Same as output language',
+      sameAsUserDesc: 'Use the same language for thinking and outputs',
+      thinkLabel: 'Think language: {language:string}',
+      userLabel: 'Output language: {language:string}',
+    },
   },
 
   errors: {

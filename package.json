@@ -1,6 +1,6 @@
 {
   "name": "@claude-memory/init",
-  "version": "1.0.0",
+  "version": "2.2.0-alpha",
   "description": "CLI tool for initializing Claude Memory System in your projects (local use only, not published to npm)",
   "private": true,
   "type": "module",
@@ -63,7 +63,8 @@
     "inquirer": "^9.2.0",
     "ora": "^8.0.0",
     "simple-git": "^3.29.0",
-    "yaml": "^2.3.0"
+    "yaml": "^2.3.0",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@cucumber/cucumber": "^12.2.0",
