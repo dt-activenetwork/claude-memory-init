@@ -85,7 +85,7 @@ export const claudeFlowPlugin: Plugin<ClaudeFlowOptions> = {
     recommended: false,
     heavyweight: true,
     conflicts: ['task-system'], // Claude Flow provides its own task management
-    rulesPriority: 80, // 80-89: Heavyweight plugins
+    rulesPriority: 85, // 80-89: Heavyweight plugins
   },
 
   configuration: {

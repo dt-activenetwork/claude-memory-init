@@ -72,7 +72,7 @@ export const languageSettingsPlugin: Plugin<LanguageSettingsOptions> = {
     version: '1.0.0',
     description: 'Configure LLM Agent language preferences',
     recommended: true,
-    rulesPriority: 20, // 20-29: Global settings
+    rulesPriority: 25, // 20-29: Global settings
   },
 
   configuration: {

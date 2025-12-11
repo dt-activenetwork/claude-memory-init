@@ -57,11 +57,11 @@ Heavyweight plugins have their own initialization commands and require file prot
 project/
 ├── .claude/
 │   ├── rules/                  # Claude Code native rules (v2.2+)
-│   │   ├── 00-project.md       # Project metadata
-│   │   ├── 10-system.md        # System environment
-│   │   ├── 30-git.md           # Git rules
-│   │   ├── 40-memory.md        # Memory system
-│   │   └── ...                 # Other plugin rules
+│   │   ├── 05-project.md       # Project metadata
+│   │   ├── 15-system.md        # System environment
+│   │   ├── 25-language.md      # Language settings
+│   │   ├── 35-*.md             # Feature plugins (git, memory, task, etc.)
+│   │   └── 85-*.md             # Heavyweight plugins
 │   ├── commands/               # Slash commands
 │   └── skills/                 # Skills
 └── .agent/

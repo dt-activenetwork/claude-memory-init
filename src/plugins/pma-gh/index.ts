@@ -37,7 +37,7 @@ export const pmaGhPlugin: Plugin<PmaGhOptions> = {
     version: '1.0.0',
     description: 'GitHub project management assistant with issue tracking and PR workflow',
     recommended: false,
-    rulesPriority: 70, // 70-79: Workflows
+    rulesPriority: 35, // 30-39: Feature plugins
   },
 
   // Slash commands - CLI automatically writes to .claude/commands/

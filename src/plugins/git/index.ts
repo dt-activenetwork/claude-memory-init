@@ -183,7 +183,7 @@ export const gitPlugin: Plugin<GitPluginOptions> = {
     version: '1.0.0',
     description: 'Git operations and auto-commit',
     recommended: false,
-    rulesPriority: 30, // 30-39: Version control
+    rulesPriority: 35, // 30-39: Feature plugins
   },
 
   configuration: {

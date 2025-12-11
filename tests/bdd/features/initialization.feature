@@ -14,7 +14,7 @@
     并且 用户确认初始化
     那么 目录 ".agent" 应该存在
     并且 目录 ".claude/rules" 应该存在
-    并且 文件 ".claude/rules/00-project.md" 应该包含 "my-project"
+    并且 文件 ".claude/rules/05-project.md" 应该包含 "my-project"
     并且 文件 ".agent/.claude-memory-init" 应该存在
 
   场景: 最小化初始化（仅系统检测器）
@@ -52,8 +52,8 @@
 
   场景: 规则文件不应包含未替换的占位符
     当 用户完成初始化
-    那么 文件 ".claude/rules/00-project.md" 不应该包含 "{{"
-    并且 文件 ".claude/rules/00-project.md" 不应该包含 "}}"
+    那么 文件 ".claude/rules/05-project.md" 不应该包含 "{{"
+    并且 文件 ".claude/rules/05-project.md" 不应该包含 "}}"
 
   场景: 保留现有的 AGENT.md 文件
     假如 项目中存在 "AGENT.md" 文件包含 "# Existing Content"

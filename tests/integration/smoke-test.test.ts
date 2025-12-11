@@ -104,8 +104,8 @@ describe('Smoke Test: Full System Functionality', () => {
       const mdFiles = files.filter(f => f.endsWith('.md'));
       expect(mdFiles.length).toBeGreaterThan(0);
 
-      // Check for project rules file (00-project.md)
-      const projectRulesPath = path.join(rulesDir, '00-project.md');
+      // Check for project rules file (05-project.md)
+      const projectRulesPath = path.join(rulesDir, '05-project.md');
       const projectRulesExists = await fileExists(projectRulesPath);
       expect(projectRulesExists).toBe(true);
 
@@ -156,7 +156,7 @@ describe('Smoke Test: Full System Functionality', () => {
       const mdFiles = files.filter(f => f.endsWith('.md')).sort();
 
       // Files should be numbered to reflect priority order
-      // 00-project.md, 10-system.md, 30-git.md, 40-memory.md, etc.
+      // 05-project.md, 15-system.md, 35-git.md, 35-memory.md, etc.
       expect(mdFiles.length).toBeGreaterThan(0);
 
       // Verify files are prefixed with numbers (NN-name.md format)
@@ -231,11 +231,11 @@ describe('Smoke Test: Full System Functionality', () => {
       const mdFiles = files.filter(f => f.endsWith('.md'));
 
       // Should have rules files for enabled plugins
-      // Project rules (00), system (10), git (30), memory (40)
+      // Project rules (05), system (15), feature plugins (35)
       expect(mdFiles.length).toBeGreaterThanOrEqual(2);
 
       // Check for project rules file
-      expect(files.some(f => f.startsWith('00-'))).toBe(true);
+      expect(files.some(f => f.startsWith('05-'))).toBe(true);
     });
 
     it('should include content from enabled plugins', async () => {
@@ -366,7 +366,7 @@ describe('Smoke Test: Full System Functionality', () => {
 
   describe('Rules Content', () => {
     it('should have project information', async () => {
-      const projectRulesPath = path.join(testOutputDir, '.claude', 'rules', '00-project.md');
+      const projectRulesPath = path.join(testOutputDir, '.claude', 'rules', '05-project.md');
       const content = await fs.readFile(projectRulesPath, 'utf-8');
 
       expect(content).toContain('test-project');
@@ -378,7 +378,7 @@ describe('Smoke Test: Full System Functionality', () => {
       const rulesDir = path.join(testOutputDir, '.claude', 'rules');
       const files = await fs.readdir(rulesDir);
 
-      // Find system rules file (10-system.md)
+      // Find system rules file (15-system.md)
       const systemFile = files.find(f => f.includes('system'));
       if (systemFile) {
         const content = await fs.readFile(path.join(rulesDir, systemFile), 'utf-8');
@@ -563,7 +563,7 @@ describe('Smoke Test: Full System Functionality', () => {
 
   describe('Content Quality', () => {
     it('should have meaningful content (not placeholder text)', async () => {
-      const projectRulesPath = path.join(testOutputDir, '.claude', 'rules', '00-project.md');
+      const projectRulesPath = path.join(testOutputDir, '.claude', 'rules', '05-project.md');
       const content = await fs.readFile(projectRulesPath, 'utf-8');
 
       // Should have actual project name

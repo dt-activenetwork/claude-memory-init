@@ -54,7 +54,7 @@ export const promptPresetsPlugin: Plugin<PromptPresetsOptions> = {
     version: '2.0.0',
     description: 'Base prompt templates with optional enhancements',
     recommended: true,
-    rulesPriority: 60, // 60-69: Extensions
+    rulesPriority: 35, // 30-39: Feature plugins
   },
 
   configuration: {

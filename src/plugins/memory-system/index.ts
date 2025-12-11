@@ -28,7 +28,7 @@ export const memorySystemPlugin: Plugin<MemorySystemOptions> = {
     version: '1.0.0',
     description: 'Memory system for knowledge persistence',
     recommended: true,
-    rulesPriority: 40, // 40-49: Core systems
+    rulesPriority: 35, // 30-39: Feature plugins
   },
 
   slashCommands: [

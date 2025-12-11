@@ -26,7 +26,7 @@ export const taskSystemPlugin: Plugin<TaskSystemOptions> = {
     version: '1.0.0',
     description: 'Task workflows, state tracking, and outputs',
     recommended: true,
-    rulesPriority: 50, // 50-59: Task management
+    rulesPriority: 35, // 30-39: Feature plugins
   },
 
   slashCommands: [

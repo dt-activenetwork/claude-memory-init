@@ -145,51 +145,40 @@ export const CLAUDE_SUBDIRS = {
  * Rules priority constants (init.d style)
  *
  * Determines the numeric prefix for files in .claude/rules/
- * Lower numbers load first.
+ * Lower numbers load first. Default to X5 to allow insertion before/after.
  *
  * Ranges:
  * - 00-09: Project basics
  * - 10-19: System/environment
  * - 20-29: Global settings
- * - 30-39: Version control
- * - 40-49: Core systems
- * - 50-59: Task management
- * - 60-69: Extensions
- * - 70-79: Workflows
+ * - 30-39: Feature plugins (git, memory, task, presets, pma-gh)
  * - 80-89: Heavyweight plugins
  * - 90-99: User custom
  */
 export const RULES_PRIORITY = {
   /** 00-09: Project basics */
-  PROJECT: 0,
+  PROJECT: 5,
 
   /** 10-19: System/environment */
-  SYSTEM_DETECTOR: 10,
+  SYSTEM_DETECTOR: 15,
 
   /** 20-29: Global settings */
-  LANGUAGE_SETTINGS: 20,
+  LANGUAGE_SETTINGS: 25,
 
-  /** 30-39: Version control */
-  GIT: 30,
+  /** 30-39: Feature plugins (same level) */
+  FEATURE_PLUGINS: 35,
+  GIT: 35,
+  MEMORY_SYSTEM: 35,
+  TASK_SYSTEM: 35,
+  PROMPT_PRESETS: 35,
+  PMA_GH: 35,
 
-  /** 40-49: Core systems */
-  MEMORY_SYSTEM: 40,
-
-  /** 50-59: Task management */
-  TASK_SYSTEM: 50,
-
-  /** 60-69: Extensions */
-  PROMPT_PRESETS: 60,
-
-  /** 70-79: Workflows */
-  PMA_GH: 70,
-
-  /** 80-89: Heavyweight plugins (base) */
-  HEAVYWEIGHT_BASE: 80,
-  CLAUDE_FLOW: 80,
+  /** 80-89: Heavyweight plugins */
+  HEAVYWEIGHT_BASE: 85,
+  CLAUDE_FLOW: 85,
 
   /** 90-99: User custom */
-  CUSTOM: 90,
+  CUSTOM: 95,
 } as const;
 
 /**

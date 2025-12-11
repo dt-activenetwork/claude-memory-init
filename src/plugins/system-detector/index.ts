@@ -235,7 +235,7 @@ export const systemDetectorPlugin: Plugin<SystemDetectorOptions> = {
     version: '2.1.0',
     description: 'Configure system environment with two-layer memory',
     recommended: true,
-    rulesPriority: 10, // 10-19: System/environment
+    rulesPriority: 15, // 10-19: System/environment
   },
 
   configuration: {

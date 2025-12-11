@@ -101,8 +101,8 @@ describe('Full Initialization Flow (E2E)', () => {
       const mdFiles = files.filter(f => f.endsWith('.md'));
       expect(mdFiles.length).toBeGreaterThan(0);
 
-      // Verify project rules file (00-project.md)
-      await expectFileExists(tmpDir, '.claude/rules/00-project.md');
+      // Verify project rules file (05-project.md)
+      await expectFileExists(tmpDir, '.claude/rules/05-project.md');
 
       // Verify system config file (new v2.1 two-layer architecture)
       await expectFileExists(tmpDir, '.agent/system/config.toon');
@@ -119,7 +119,7 @@ describe('Full Initialization Flow (E2E)', () => {
       expect(configContent).toContain('package_managers:');
 
       // Verify project rules content
-      const projectRules = await fs.readFile(path.join(tmpDir, '.claude/rules/00-project.md'), 'utf-8');
+      const projectRules = await fs.readFile(path.join(tmpDir, '.claude/rules/05-project.md'), 'utf-8');
       expect(projectRules).toContain('test-project');
     });
   });
@@ -162,7 +162,7 @@ describe('Full Initialization Flow (E2E)', () => {
       await expectDirectoryExists(tmpDir, '.claude/rules');
 
       // Verify files
-      await expectFileExists(tmpDir, '.claude/rules/00-project.md');
+      await expectFileExists(tmpDir, '.claude/rules/05-project.md');
       await expectFileExists(tmpDir, '.agent/system/config.toon');
 
       // Verify rules files for enabled plugins
@@ -174,7 +174,7 @@ describe('Full Initialization Flow (E2E)', () => {
       expect(mdFiles.length).toBeGreaterThanOrEqual(2);
 
       // Verify project rules content
-      const projectRules = await fs.readFile(path.join(tmpDir, '.claude/rules/00-project.md'), 'utf-8');
+      const projectRules = await fs.readFile(path.join(tmpDir, '.claude/rules/05-project.md'), 'utf-8');
       expect(projectRules).toContain('full-test-project');
 
       // Verify system/config.toon exists and has package managers
@@ -297,7 +297,7 @@ Some important notes here.
       expect(mdFiles.length).toBeGreaterThan(0);
 
       // Verify project rules contain the project name
-      const projectRules = await fs.readFile(path.join(rulesDir, '00-project.md'), 'utf-8');
+      const projectRules = await fs.readFile(path.join(rulesDir, '05-project.md'), 'utf-8');
       expect(projectRules).toContain('preserve-test');
     });
 
@@ -364,7 +364,7 @@ Custom content here.
 
       // Verify rules were written to .claude/rules/
       const rulesDir = path.join(tmpDir, '.claude', 'rules');
-      const projectRules = await fs.readFile(path.join(rulesDir, '00-project.md'), 'utf-8');
+      const projectRules = await fs.readFile(path.join(rulesDir, '05-project.md'), 'utf-8');
       expect(projectRules).toContain('both-files-test');
     });
   });

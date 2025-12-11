@@ -202,7 +202,7 @@ export class RulesWriter {
   }
 
   /**
-   * Write project info rules file (00-project.md)
+   * Write project info rules file (05-project.md)
    */
   async writeProjectRules(projectName: string, version: string): Promise<RulesWriteResult> {
     const filename = generateRulesFilename(RULES_PRIORITY.PROJECT, 'project');
