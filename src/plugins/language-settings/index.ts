@@ -141,28 +141,27 @@ export const languageSettingsPlugin: Plugin<LanguageSettingsOptions> = {
     },
   },
 
-  // Contribute to AGENT.md Language Convention section
-  prompt: {
-    placeholder: 'LANGUAGE_SECTION',
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'language',
+
     generate: (config: PluginConfig<LanguageSettingsOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
       const { options } = config;
+      const sections: string[] = ['# Language Settings'];
+      sections.push('');
+      sections.push(`- **Internal thinking**: ${options.think_language} (for code analysis, technical reasoning)`);
+      sections.push(`- **External retrieval**: ${options.think_language} (code, documentation, web search)`);
+      sections.push(`- **Final outputs**: ${options.user_language} (user-facing documentation, reports)`);
 
-      const lines: string[] = [];
-      lines.push('## Language Convention');
-      lines.push('');
-      lines.push(`- **Internal thinking**: ${options.think_language} (for code analysis, technical reasoning)`);
-      lines.push(`- **External retrieval**: ${options.think_language} (code, documentation, web search)`);
-      lines.push(`- **Final outputs**: ${options.user_language} (user-facing documentation, reports)`);
-
-      return lines.join('\n');
+      return sections.join('\n');
     },
   },
 
-  // No outputs needed - this plugin only contributes to AGENT.md via prompt
+  // No outputs needed - this plugin contributes to .claude/rules/ via rules property
   outputs: {
     generate: async (): Promise<[]> => [],
   },

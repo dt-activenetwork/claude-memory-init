@@ -135,8 +135,9 @@ export const promptPresetsPlugin: Plugin<PromptPresetsOptions> = {
     },
   },
 
-  prompt: {
-    placeholder: 'PRESETS_SECTION',
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'presets',
 
     generate: (config: PluginConfig<PromptPresetsOptions>): string => {
       if (!config.enabled) {
@@ -146,25 +147,24 @@ export const promptPresetsPlugin: Plugin<PromptPresetsOptions> = {
       const { options } = config;
       const baseName = BASE_TEMPLATES.find(t => t.value === options.base_template)?.name;
 
-      const lines: string[] = [];
-      lines.push('## Active Prompt Preset');
-      lines.push('');
-      lines.push(`**Base Template**: ${baseName}`);
-      lines.push(`**Location**: \`.agent/presets/${options.base_template}.md\``);
-      lines.push('');
+      const sections: string[] = ['# Active Prompt Preset'];
+      sections.push('');
+      sections.push(`**Base Template**: ${baseName}`);
+      sections.push(`**Location**: \`.agent/presets/${options.base_template}.md\``);
+      sections.push('');
 
       if (options.enhancements.length > 0) {
-        lines.push('**Includes**:');
+        sections.push('**Includes**:');
         for (const enhancement of options.enhancements) {
           const enhName = ENHANCEMENTS.find(e => e.value === enhancement)?.name;
-          lines.push(`- ${enhName}`);
+          sections.push(`- ${enhName}`);
         }
-        lines.push('');
+        sections.push('');
       }
 
-      lines.push('See the preset file for complete instructions.');
+      sections.push('See the preset file for complete instructions.');
 
-      return lines.join('\n');
+      return sections.join('\n');
     },
   },
 

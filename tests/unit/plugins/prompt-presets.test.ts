@@ -166,36 +166,6 @@ describe('Prompt Presets Plugin', () => {
     });
   });
 
-  describe('Prompt Generation', () => {
-    it('should generate AGENT.md section', () => {
-      const config = {
-        enabled: true,
-        options: {
-          base_template: 'code-review',
-          enhancements: ['system-information', 'git-rules'],
-        },
-      };
-
-      const prompt = promptPresetsPlugin.prompt?.generate(config);
-
-      expect(prompt).toBeDefined();
-      expect(prompt).toContain('Active Prompt Preset');
-      expect(prompt).toContain('Code Review');
-      expect(prompt).toContain('System Information');
-      expect(prompt).toContain('Git Rules');
-    });
-
-    it('should not generate section when disabled', () => {
-      const config = {
-        enabled: false,
-        options: {},
-      };
-
-      const prompt = promptPresetsPlugin.prompt?.generate(config);
-
-      expect(prompt).toBe('');
-    });
-  });
 });
 
 /**

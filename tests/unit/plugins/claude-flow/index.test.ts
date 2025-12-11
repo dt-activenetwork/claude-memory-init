@@ -419,45 +419,6 @@ describe('claudeFlowPlugin', () => {
     });
   });
 
-  describe('prompt', () => {
-    it('should return empty string when plugin is disabled', () => {
-      const config: PluginConfig = { enabled: false, options: {} };
-      const context = createMockPluginContext();
-
-      const result = claudeFlowPlugin.prompt!.generate(config, context);
-
-      expect(result).toBe('');
-    });
-
-    it('should return empty string when mode is skip', () => {
-      const config: PluginConfig = { enabled: true, options: { mode: 'skip' } };
-      const context = createMockPluginContext();
-
-      const result = claudeFlowPlugin.prompt!.generate(config, context);
-
-      expect(result).toBe('');
-    });
-
-    it('should generate content for enabled plugin', () => {
-      const config: PluginConfig = {
-        enabled: true,
-        options: {
-          mode: 'standard',
-          enableSwarm: true,
-          enableHiveMind: true,
-        },
-      };
-      const context = createMockPluginContext();
-
-      const result = claudeFlowPlugin.prompt!.generate(config, context);
-
-      expect(result).toContain('## Claude Flow Integration');
-      expect(result).toContain('Mode**: standard');
-      expect(result).toContain('Swarm Mode**: Enabled');
-      expect(result).toContain('Hive Mind**: Enabled');
-    });
-  });
-
   describe('gitignore', () => {
     it('should return patterns for enabled plugin', () => {
       const config: PluginConfig = { enabled: true, options: {} };

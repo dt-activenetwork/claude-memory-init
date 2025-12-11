@@ -136,8 +136,9 @@ export const pmaGhPlugin: Plugin<PmaGhOptions> = {
     },
   },
 
-  prompt: {
-    placeholder: 'PMA_GH_SECTION',
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'pma',
 
     generate: (config: PluginConfig<PmaGhOptions>): string => {
       if (!config.enabled) {
@@ -145,47 +146,46 @@ export const pmaGhPlugin: Plugin<PmaGhOptions> = {
       }
 
       const { options } = config;
-
-      const lines = ['## GitHub Workflow (PMA)'];
-      lines.push('');
-      lines.push('Project management assistant for GitHub-based development workflow.');
-      lines.push('');
-      lines.push('### Workflow');
-      lines.push('');
-      lines.push('1. **Start**: `/pma-issue <github-issue-url>`');
-      lines.push('   - Fetches issue details via `gh` CLI');
+      const sections: string[] = ['# GitHub Workflow (PMA)'];
+      sections.push('');
+      sections.push('Project management assistant for GitHub-based development workflow.');
+      sections.push('');
+      sections.push('## Workflow');
+      sections.push('');
+      sections.push('1. **Start**: `/pma-issue <github-issue-url>`');
+      sections.push('   - Fetches issue details via `gh` CLI');
 
       if (options.enable_validation) {
-        lines.push('   - Validates: assigned to you, linked to project');
+        sections.push('   - Validates: assigned to you, linked to project');
       }
 
-      lines.push('   - Analyzes requirements and proposes implementation');
+      sections.push('   - Analyzes requirements and proposes implementation');
 
       if (options.auto_create_branch) {
-        lines.push('   - Creates feature branch automatically');
+        sections.push('   - Creates feature branch automatically');
       }
 
-      lines.push('');
-      lines.push('2. **Work**: Implement the issue requirements');
-      lines.push('');
-      lines.push('3. **Complete**: Choose one:');
-      lines.push('   - `/pma-pr` - Create PR to resolve issue');
-      lines.push('   - `/pma-close` - Close issue as not planned');
-      lines.push('');
-      lines.push('### Available Commands');
-      lines.push('');
-      lines.push('| Command | Description |');
-      lines.push('|---------|-------------|');
-      lines.push('| `/pma-issue <url>` | Start working on a GitHub issue |');
-      lines.push('| `/pma-pr` | Create PR when implementation is complete |');
-      lines.push('| `/pma-close` | Close issue as not planned |');
-      lines.push('');
-      lines.push('### Prerequisites');
-      lines.push('');
-      lines.push('- `gh` CLI installed and authenticated (`gh auth login`)');
-      lines.push('- Access to the GitHub repository');
+      sections.push('');
+      sections.push('2. **Work**: Implement the issue requirements');
+      sections.push('');
+      sections.push('3. **Complete**: Choose one:');
+      sections.push('   - `/pma-pr` - Create PR to resolve issue');
+      sections.push('   - `/pma-close` - Close issue as not planned');
+      sections.push('');
+      sections.push('## Available Commands');
+      sections.push('');
+      sections.push('| Command | Description |');
+      sections.push('|---------|-------------|');
+      sections.push('| `/pma-issue <url>` | Start working on a GitHub issue |');
+      sections.push('| `/pma-pr` | Create PR when implementation is complete |');
+      sections.push('| `/pma-close` | Close issue as not planned |');
+      sections.push('');
+      sections.push('## Prerequisites');
+      sections.push('');
+      sections.push('- `gh` CLI installed and authenticated (`gh auth login`)');
+      sections.push('- Access to the GitHub repository');
 
-      return lines.join('\n');
+      return sections.join('\n');
     },
   },
 

@@ -128,8 +128,8 @@ export const taskSystemPlugin: Plugin<TaskSystemOptions> = {
     },
   },
 
-  prompt: {
-    placeholder: 'TASK_SECTION',
+  rules: {
+    baseName: 'task',
 
     generate: (config: PluginConfig<TaskSystemOptions>): string => {
       if (!config.enabled) {
@@ -138,12 +138,12 @@ export const taskSystemPlugin: Plugin<TaskSystemOptions> = {
 
       const { options } = config;
 
-      const lines = ['## Task System'];
+      const lines = ['# Task System'];
       lines.push('');
-      lines.push('Two-phase task management: Define → Execute (with session support)');
+      lines.push('Two-phase task management: Define -> Execute (with session support)');
       lines.push('');
 
-      lines.push('### Workflow');
+      lines.push('## Workflow');
       lines.push('');
       lines.push('**Phase 1 - Define Task**:');
       lines.push('1. `/task-create <name>` - Create task with dedicated prompt');
@@ -158,7 +158,7 @@ export const taskSystemPlugin: Plugin<TaskSystemOptions> = {
       lines.push('6. `/task-complete` - Mark done');
       lines.push('');
 
-      lines.push('### Available Commands');
+      lines.push('## Available Commands');
       lines.push('');
       lines.push('**Lifecycle**:');
       lines.push('- `/task-create <name>` - Create task + write prompt');
@@ -173,13 +173,13 @@ export const taskSystemPlugin: Plugin<TaskSystemOptions> = {
       lines.push('- `/task-incomplete` - Unfinished tasks');
       lines.push('');
 
-      lines.push('### Key Principles');
+      lines.push('## Key Principles');
       lines.push('');
-      lines.push('- ✅ **Define before execute**: Write prompt first');
-      lines.push('- ✅ **One task at a time**: Focus matters');
-      lines.push('- ✅ **Pause between sessions**: Save context');
-      lines.push('- ✅ **Resume with full context**: No information loss');
-      lines.push('- ❌ **Don\'t skip prompt**: It guides execution');
+      lines.push('- **Define before execute**: Write prompt first');
+      lines.push('- **One task at a time**: Focus matters');
+      lines.push('- **Pause between sessions**: Save context');
+      lines.push('- **Resume with full context**: No information loss');
+      lines.push('- **Don\'t skip prompt**: It guides execution');
       lines.push('');
 
       lines.push('Each task has:');

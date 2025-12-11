@@ -171,50 +171,6 @@ Commands contain detailed steps. Just call them when needed.`;
     },
   },
 
-  // @deprecated - Use rules instead. Will be removed in v3.0.
-  prompt: {
-    placeholder: 'MEMORY_SECTION',
-
-    generate: (config: PluginConfig): string => {
-      if (!config.enabled) {
-        return '';
-      }
-
-      return `## Memory System
-
-Memory-driven workflow for efficient knowledge reuse.
-
-### Workflow
-
-**Before work**:
-1. Use \`/memory-search <tag>\` or \`/memory-query <topic>\` to find relevant knowledge
-2. Read identified notes completely
-
-**During work**:
-- Apply existing knowledge
-- Don't re-analyze what's documented
-
-**After work**:
-1. Create/update memory notes in \`.agent/memory/knowledge/\` or \`.agent/memory/history/\`
-2. Update indexes in \`.agent/memory/index/tags.toon\` and \`topics.toon\`
-
-### Available Commands
-
-- \`/memory-search <tag>\` - Find notes by tag
-- \`/memory-query <topic>\` - Query notes by topic
-- \`/memory-index\` - Show all tags and topics
-- \`/memory-recent [N]\` - Show N most recent notes
-
-### Key Principles
-
-- ✅ Use commands to query (efficient, structured)
-- ✅ Read complete note files (don't skip)
-- ❌ Never use find/grep on memory (use indexes via commands)
-
-Commands contain detailed steps. Just call them when needed.`;
-    },
-  },
-
   outputs: {
     generate: async (config: PluginConfig<MemorySystemOptions>, context: PluginContext): Promise<FileOutput[]> => {
       if (!config.enabled) {

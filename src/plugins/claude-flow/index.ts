@@ -287,42 +287,40 @@ export const claudeFlowPlugin: Plugin<ClaudeFlowOptions> = {
     return `${ourContent.trimEnd()}\n\n---\n\n${theirContent.trimStart()}`;
   },
 
-  // Prompt contribution to AGENT.md
-  prompt: {
-    placeholder: 'CLAUDE_FLOW_SECTION',
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'claude-flow',
 
-    generate: (config: PluginConfig, context: PluginContext): string => {
+    generate: (config: PluginConfig<ClaudeFlowOptions>): string => {
       if (!config.enabled) {
         return '';
       }
 
-      const options = config.options as unknown as ClaudeFlowOptions;
+      const { options } = config;
 
       if (options.mode === 'skip') {
         return '';
       }
 
-      // Note: The actual content will come from claude-flow init
-      // This is just a placeholder that will be merged
-      const lines = ['## Claude Flow Integration'];
-      lines.push('');
-      lines.push('This project uses Claude Flow for AI orchestration.');
-      lines.push('');
-      lines.push(`- **Mode**: ${options.mode}`);
+      const sections: string[] = ['# Claude Flow'];
+      sections.push('');
+      sections.push('This project uses Claude Flow for AI orchestration.');
+      sections.push('');
+      sections.push(`- **Mode**: ${options.mode}`);
 
       if (options.enableSwarm) {
-        lines.push('- **Swarm Mode**: Enabled (multi-agent coordination)');
+        sections.push('- **Swarm Mode**: Enabled (multi-agent coordination)');
       }
 
       if (options.enableHiveMind) {
-        lines.push('- **Hive Mind**: Enabled (collective intelligence)');
+        sections.push('- **Hive Mind**: Enabled (collective intelligence)');
       }
 
-      lines.push('');
-      lines.push('See `.claude/commands/` for available slash commands.');
-      lines.push('See `.claude/agents/` for agent definitions.');
+      sections.push('');
+      sections.push('See `.claude/commands/` for available slash commands.');
+      sections.push('See `.claude/agents/` for agent definitions.');
 
-      return lines.join('\n');
+      return sections.join('\n');
     },
   },
 

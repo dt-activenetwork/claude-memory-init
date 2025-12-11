@@ -316,43 +316,6 @@ export const gitPlugin: Plugin<GitPluginOptions> = {
     },
   },
 
-  // @deprecated - Use rules instead. Will be removed in v3.0.
-  prompt: {
-    placeholder: 'GIT_SECTION',
-
-    generate: (config: PluginConfig<GitPluginOptions>): string => {
-      if (!config.enabled) {
-        return '';
-      }
-
-      const { options } = config;
-      const sections: string[] = ['## Git Operations'];
-      sections.push('');
-
-      if (options.auto_commit) {
-        sections.push('**Auto-commit**: ENABLED');
-        sections.push(
-          `**Strategy**: ${options.commit_separately ? 'Separate commits' : 'Combined commits'}`
-        );
-      } else {
-        sections.push('**Auto-commit**: DISABLED');
-      }
-
-      sections.push('');
-
-      if (options.ai_git_operations) {
-        sections.push('**AI Git Operations**: ALLOWED (with constraints)');
-      } else {
-        sections.push('**AI Git Operations**: FORBIDDEN');
-      }
-
-      sections.push('');
-      sections.push('See `.agent/git/rules.md` for complete guidelines.');
-
-      return sections.join('\n');
-    },
-  },
-
   outputs: {
     generate: (config: PluginConfig<GitPluginOptions>): FileOutput[] => {
       if (!config.enabled) {

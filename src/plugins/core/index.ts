@@ -45,12 +45,6 @@ export const corePlugin: Plugin = {
     getSummary: (): string[] => ['Core commands enabled'],
   },
 
-  // No prompt contribution - this is a utility plugin
-  prompt: {
-    placeholder: 'CORE_SECTION',
-    generate: (): string => '',
-  },
-
   // No outputs
   outputs: {
     generate: async (): Promise<[]> => [],

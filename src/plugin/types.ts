@@ -574,37 +574,6 @@ export interface FileOutput {
   scope?: MemoryScope;
 }
 
-/**
- * Plugin prompt contribution to AGENT.md
- *
- * @deprecated Use PluginRulesContribution instead. This interface will be removed in v3.0.
- * The new rules-based architecture writes to .claude/rules/*.md instead of a single AGENT.md.
- */
-export interface PluginPromptContribution<TOptions = Record<string, PluginOptionValue>> {
-  /**
-   * Placeholder name in AGENT.md.template
-   *
-   * The placeholder {{PLACEHOLDER_NAME}} will be replaced with generated content.
-   * If plugin is disabled or returns empty string, placeholder is replaced with empty string.
-   *
-   * @example "GIT_SECTION", "MEMORY_SECTION", "SYSTEM_INFO_SECTION"
-   * @deprecated Use PluginRulesContribution.baseName instead
-   */
-  placeholder: string;
-
-  /**
-   * Generate content to replace placeholder
-   *
-   * Generated content should include the section title (##) if applicable.
-   * Return empty string to completely remove the section.
-   *
-   * @param config Plugin configuration
-   * @param context Plugin context
-   * @returns Markdown content including section title, or empty string
-   * @deprecated Use PluginRulesContribution.generate instead
-   */
-  generate: (config: PluginConfig<TOptions>, context: PluginContext) => Promise<string> | string;
-}
 
 /**
  * Plugin rules contribution to .claude/rules/
@@ -1051,19 +1020,10 @@ export interface Plugin<TOptions = Record<string, PluginOptionValue>> {
   skills?: Skill[];
 
   /**
-   * Prompt contribution to AGENT.md (optional)
-   *
-   * @deprecated Use `rules` instead. This will be removed in v3.0.
-   */
-  prompt?: PluginPromptContribution<TOptions>;
-
-  /**
    * Rules contribution to .claude/rules/ (optional)
    *
    * Generates a rules file that is natively supported by Claude Code.
    * The file is named {priority}-{baseName}.md where priority comes from meta.rulesPriority.
-   *
-   * This replaces the deprecated `prompt` property.
    */
   rules?: PluginRulesContribution<TOptions>;
 

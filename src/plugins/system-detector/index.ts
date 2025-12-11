@@ -452,8 +452,9 @@ export const systemDetectorPlugin: Plugin<SystemDetectorOptions> = {
     },
   },
 
-  prompt: {
-    placeholder: 'SYSTEM_INFO_SECTION',
+  // Rules contribution (new architecture - .claude/rules/)
+  rules: {
+    baseName: 'system',
 
     generate: (config: PluginConfig<SystemDetectorInternalOptions>): string => {
       if (!config.enabled) {
@@ -463,7 +464,7 @@ export const systemDetectorPlugin: Plugin<SystemDetectorOptions> = {
       const { options } = config;
       const lines: string[] = [];
 
-      lines.push('## System Environment');
+      lines.push('# System Environment');
       lines.push('');
 
       if (options.userPreferences) {
