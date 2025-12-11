@@ -160,6 +160,52 @@ python:
 
 ---
 
+### Language Settings Plugin
+
+**Purpose**: Configure AI language preferences for internal thinking and user-facing outputs
+
+**Configuration Options**:
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `think_language` | Language for AI's internal reasoning and code analysis | English |
+| `user_language` | Language for AI's user-facing outputs | Auto-detected from shell locale |
+
+**Interactive Configuration**:
+
+```
+📝 Language Settings
+
+✓ Detected: Chinese (from shell locale)
+
+? Select language for AI outputs:
+  ○ English
+  ◉ 中文 (Chinese)      ← detected
+  ○ 日本語 (Japanese)
+  ...
+
+? Select language for AI thinking:
+  ◉ English             ← recommended for technical work
+  ○ Same as user language
+```
+
+**Generated AGENT.md Section**:
+
+```markdown
+## Language Convention
+
+- **Internal thinking**: English (for code analysis, technical reasoning)
+- **External retrieval**: English (code, documentation, web search)
+- **Final outputs**: Chinese (user-facing documentation, reports)
+```
+
+**Benefits**:
+- ✅ AI thinks in optimal language for technical work
+- ✅ User receives outputs in their preferred language
+- ✅ Auto-detects from shell locale
+
+---
+
 ### Memory System Plugin
 
 **Purpose**: Knowledge persistence across sessions

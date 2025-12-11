@@ -30,6 +30,7 @@ The tool uses a modular plugin architecture with built-in plugins:
 |--------|--------------|---------|
 | core | core | Essential commands (always enabled) |
 | system-detector | system | Auto-detect OS, Python, Node.js environments |
+| language-settings | language | Configure AI language preferences (think/output) |
 | memory-system | memory | Knowledge persistence with TOON indexes |
 | git | git | Git automation and rules |
 | task-system | task | Task state tracking and workflows |
@@ -120,6 +121,7 @@ claude-memory-init/
 │   │   │       ├── os.ts
 │   │   │       ├── python.ts
 │   │   │       └── node.ts
+│   │   ├── language-settings/  # AI language preferences
 │   │   ├── memory-system/      # Memory persistence
 │   │   ├── git/                # Git integration
 │   │   ├── task-system/        # Task management
@@ -297,18 +299,36 @@ pnpm start          # Run built CLI
 
 ## Documentation
 
+### Reading Guide
+
+**For major refactoring**: This file (`CLAUDE.md`) + `src/plugin/types.ts` is sufficient. Code is the source of truth.
+
+**For specific subsystems** (read only when needed):
+
+| Task | Read |
+|------|------|
+| Modify plugin system | `src/plugin/types.ts` (code) |
+| Modify heavyweight plugin mechanism | docs/HEAVYWEIGHT_PLUGINS.md |
+| Modify OutputRouter/ResourceWriter | docs/UNIFIED_RESOURCE_REGISTRATION.md |
+| Modify i18n system | docs/I18N_DESIGN.md |
+| Modify interactive flow | docs/INTERACTIVE_CLI_DESIGN.md |
+| Modify CLI commands | docs/CLI_COMMANDS_DESIGN.md |
+| Modify AGENT.md generation | docs/PLUGIN_PROMPT_SPECIFICATION.md |
+
+**Skip these** (user docs, not design docs):
+- USER_GUIDE.md, EXAMPLES.md, CLAUDE_FLOW_QUICK_START.md, BDD_SETUP.md
+
 ### Design Docs (docs/)
 
 | Document | Content |
 |----------|---------|
-| REFACTOR_SUMMARY.md | v2.0 refactor overview |
-| PLUGIN_ARCHITECTURE_REFACTOR.md | Plugin system design |
+| PLUGIN_ARCHITECTURE_REFACTOR.md | Plugin system design (historical reference) |
 | HEAVYWEIGHT_PLUGINS.md | Heavyweight plugin framework (v2.2+) |
-| CLAUDE_FLOW_QUICK_START.md | Claude Flow integration guide |
+| UNIFIED_RESOURCE_REGISTRATION.md | OutputRouter and ResourceWriter |
+| I18N_DESIGN.md | Internationalization |
 | INTERACTIVE_CLI_DESIGN.md | Interactive flow design |
 | CLI_COMMANDS_DESIGN.md | Command structure |
-| I18N_DESIGN.md | Internationalization |
-| USER_GUIDE.md | Complete user guide |
+| PLUGIN_PROMPT_SPECIFICATION.md | AGENT.md generation rules |
 
 ### User Docs
 

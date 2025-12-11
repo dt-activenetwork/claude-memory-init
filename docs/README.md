@@ -9,53 +9,51 @@
 
 ### 用户文档
 
-- **[USER_GUIDE.md](./USER_GUIDE.md)** - 完整用户指南 ⭐ 从这里开始
+- **[USER_GUIDE.md](./USER_GUIDE.md)** - 完整用户指南
 - **[EXAMPLES.md](./EXAMPLES.md)** - 使用示例
 
-### 设计文档（已实现）
+### 设计文档
 
-1. **[REFACTOR_SUMMARY.md](./REFACTOR_SUMMARY.md)** - v2.0 重构方案总览
-   - 重构目标和核心改进
-   - 实施计划（已完成）
-
-2. **[PLUGIN_ARCHITECTURE_REFACTOR.md](./PLUGIN_ARCHITECTURE_REFACTOR.md)** - 插件化架构设计 ✅
+1. **[PLUGIN_ARCHITECTURE_REFACTOR.md](./PLUGIN_ARCHITECTURE_REFACTOR.md)** - 插件化架构设计
    - 插件系统接口定义
    - 插件生命周期钩子
    - 配置文件格式
 
-3. **[HEAVYWEIGHT_PLUGINS.md](./HEAVYWEIGHT_PLUGINS.md)** - 重量级插件框架 ✅ (v2.2+)
+2. **[HEAVYWEIGHT_PLUGINS.md](./HEAVYWEIGHT_PLUGINS.md)** - 重量级插件框架 (v2.2+)
    - Heavyweight 插件概念
    - 文件保护和合并策略
    - Claude Flow 集成
 
-4. **[CLAUDE_FLOW_QUICK_START.md](./CLAUDE_FLOW_QUICK_START.md)** - Claude Flow 快速入门 ✅
+3. **[CLAUDE_FLOW_QUICK_START.md](./CLAUDE_FLOW_QUICK_START.md)** - Claude Flow 快速入门
    - Claude Flow 安装和配置
    - 初始化模式
    - MCP 配置
 
-5. **[UNIFIED_RESOURCE_REGISTRATION.md](./UNIFIED_RESOURCE_REGISTRATION.md)** - 统一资源注册 ✅ (v2.2+)
+4. **[UNIFIED_RESOURCE_REGISTRATION.md](./UNIFIED_RESOURCE_REGISTRATION.md)** - 统一资源注册 (v2.2+)
    - OutputRouter 设计
    - ResourceWriter 实现
    - Slash Commands 和 Skills 支持
 
-6. **[I18N_DESIGN.md](./I18N_DESIGN.md)** - 国际化（i18n）设计 ✅
+5. **[I18N_DESIGN.md](./I18N_DESIGN.md)** - 国际化（i18n）设计
    - typesafe-i18n 集成
    - 英语 + 中文支持
    - 语言检测策略
 
-7. **[INTERACTIVE_CLI_DESIGN.md](./INTERACTIVE_CLI_DESIGN.md)** - 交互式 CLI 设计
+6. **[INTERACTIVE_CLI_DESIGN.md](./INTERACTIVE_CLI_DESIGN.md)** - 交互式 CLI 设计
    - 对话式交互流程
    - UI 组件库
 
-8. **[CLI_COMMANDS_DESIGN.md](./CLI_COMMANDS_DESIGN.md)** - 命令结构设计
+7. **[CLI_COMMANDS_DESIGN.md](./CLI_COMMANDS_DESIGN.md)** - 命令结构设计
    - 命令架构
    - 插件命令注册机制
 
-### 内部文档（归档）
+8. **[PLUGIN_PROMPT_SPECIFICATION.md](./PLUGIN_PROMPT_SPECIFICATION.md)** - 插件 Prompt 规范
+   - CLAUDE.md 生成规范
+   - 插件 Prompt 贡献接口
 
-内部开发文档已移至 `internal/` 目录：
+### 测试文档
 
-- **[internal/](./internal/)** - 实施计划、任务分配等内部文档
+- **[BDD_SETUP.md](./BDD_SETUP.md)** - Cucumber BDD 测试配置
 
 ---
 
@@ -79,6 +77,7 @@ claude-init (核心)
 ├── plugins/             # 内置插件
 │   ├── core/            # 基础命令
 │   ├── system-detector/ # 环境检测
+│   ├── language-settings/ # AI 语言偏好
 │   ├── memory-system/   # 记忆系统
 │   ├── git/             # Git 集成
 │   ├── task-system/     # 任务系统
@@ -95,7 +94,7 @@ claude-init (核心)
 
 | 类型 | 插件 | 说明 |
 |------|------|------|
-| **Lightweight** | core, system-detector, memory-system, git, task-system, prompt-presets, pma-gh | 直接执行 |
+| **Lightweight** | core, system-detector, language-settings, memory-system, git, task-system, prompt-presets, pma-gh | 直接执行 |
 | **Heavyweight** | claude-flow | 有外部初始化命令，需要文件保护 |
 
 ---
@@ -119,4 +118,3 @@ claude-init (核心)
 
 **版本**: 2.2.0-alpha
 **最后更新**: 2025-12-10
-

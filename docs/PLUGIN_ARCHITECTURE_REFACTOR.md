@@ -59,13 +59,12 @@ claude-init (核心工具)
 
 /**
  * 插件生命周期钩子
+ *
+ * 注意：配置逻辑已移至独立的 `configuration` 属性 (PluginConfigurationFlow)
  */
 export interface PluginHooks {
   // 初始化前
   beforeInit?: (context: PluginContext) => Promise<void> | void;
-
-  // 配置阶段
-  configure?: (context: PluginContext) => Promise<PluginConfig> | PluginConfig;
 
   // 执行阶段
   execute?: (context: PluginContext) => Promise<void> | void;
@@ -75,6 +74,20 @@ export interface PluginHooks {
 
   // 清理阶段
   cleanup?: (context: PluginContext) => Promise<void> | void;
+}
+
+/**
+ * 插件配置流程（独立于生命周期钩子）
+ */
+export interface PluginConfigurationFlow {
+  // 是否需要配置
+  needsConfiguration: boolean;
+
+  // 执行配置（交互式）
+  configure(context: ConfigurationContext): Promise<PluginConfig>;
+
+  // 获取配置摘要（用于显示）
+  getSummary(config: PluginConfig): string[];
 }
 
 /**
